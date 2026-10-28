@@ -1,0 +1,23 @@
+{
+  "_comment": "Illustrative sample data for Demo A (2-Way) from docs/WORKING_DEMO.md. Not output from real C++ engine.",
+  "_is_sample_data": true,
+  "name": "Demo A: 2-Way Set Associative",
+  "schema": "ccsim.simulation/1",
+  "ccsim_version": "0.1.0",
+  "levels": [
+    {
+      "name": "L1",
+      "accesses": 6,
+      "hits": 4,
+      "misses": 2,
+      "evictions": 0,
+      "writebacks": 0,
+      "miss_rate": 0.3333
+    }
+  ],
+  "memory": {
+    "reads": 2,
+    "writes": 0
+  },
+  "amat_cycles": 34.3333
+}

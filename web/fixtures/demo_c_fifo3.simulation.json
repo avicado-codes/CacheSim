@@ -1,0 +1,23 @@
+{
+  "_comment": "Illustrative sample data for Demo C (FIFO 3-Line) from docs/WORKING_DEMO.md. Not output from real C++ engine.",
+  "_is_sample_data": true,
+  "name": "Demo C: FIFO (3 Lines)",
+  "schema": "ccsim.simulation/1",
+  "ccsim_version": "0.1.0",
+  "levels": [
+    {
+      "name": "L1",
+      "accesses": 12,
+      "hits": 3,
+      "misses": 9,
+      "evictions": 6,
+      "writebacks": 0,
+      "miss_rate": 0.75
+    }
+  ],
+  "memory": {
+    "reads": 9,
+    "writes": 0
+  },
+  "amat_cycles": 76.0
+}
