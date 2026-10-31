@@ -7,6 +7,10 @@
 // Why not std::unordered_map: it allocates one node per insert, and the engine inserts on
 // every miss. This table is two flat arrays, linear probing, and backward-shift deletion
 // (no tombstones), so lookups stay short even after millions of evictions.
+//
+// Keys are stored as line + 1 so that 0 can mark an empty bucket. Line 2^64 - 1 (reachable
+// with 1-byte lines and address 0xFFFF'FFFF'FFFF'FFFF) would wrap to 0, so it lives in a
+// dedicated slot outside the table instead.
 
 #pragma once
 
@@ -22,9 +26,10 @@ public:
 
     explicit LineIndex(std::size_t expected = 16) { rehash(capacity_for(expected)); }
 
-    std::size_t size() const noexcept { return size_; }
+    std::size_t size() const noexcept { return size_ + (has_top_ ? 1 : 0); }
 
     std::uint32_t find(std::uint64_t line) const noexcept {
+        if (line == kTopLine) return has_top_ ? top_value_ : kAbsent;
         const std::uint64_t key = line + 1;  // 0 marks an empty bucket
         for (std::size_t i = bucket(key);; i = (i + 1) & mask_) {
             if (keys_[i] == key) return values_[i];
@@ -34,6 +39,11 @@ public:
 
     // Inserts or overwrites.
     void put(std::uint64_t line, std::uint32_t value) {
+        if (line == kTopLine) {
+            top_value_ = value;
+            has_top_ = true;
+            return;
+        }
         if ((size_ + 1) * 4 > keys_.size() * 3) rehash(keys_.size() * 2);  // load <= 0.75
         const std::uint64_t key = line + 1;
         for (std::size_t i = bucket(key);; i = (i + 1) & mask_) {
@@ -52,6 +62,10 @@ public:
 
     // Removes `line` if present.
     void erase(std::uint64_t line) noexcept {
+        if (line == kTopLine) {
+            has_top_ = false;
+            return;
+        }
         const std::uint64_t key = line + 1;
         std::size_t i = bucket(key);
         while (keys_[i] != key) {
@@ -78,6 +92,7 @@ public:
     void clear() noexcept {
         for (auto& k : keys_) k = 0;
         size_ = 0;
+        has_top_ = false;
     }
 
     // Visits every (line, value) pair in unspecified order.
@@ -86,6 +101,7 @@ public:
         for (std::size_t i = 0; i < keys_.size(); ++i) {
             if (keys_[i] != 0) f(keys_[i] - 1, values_[i]);
         }
+        if (has_top_) f(kTopLine, top_value_);
     }
 
     std::size_t memory_bytes() const noexcept {
@@ -93,6 +109,8 @@ public:
     }
 
 private:
+    static constexpr std::uint64_t kTopLine = ~std::uint64_t{0};  // key would wrap to 0
+
     static std::size_t capacity_for(std::size_t expected) {
         std::size_t cap = 16;
         while (cap * 3 < expected * 4 + 4) cap <<= 1;
@@ -125,7 +143,9 @@ private:
     std::vector<std::uint64_t> keys_;
     std::vector<std::uint32_t> values_;
     std::size_t mask_ = 0;
-    std::size_t size_ = 0;
+    std::size_t size_ = 0;     // entries in the table (excludes the top slot)
+    bool has_top_ = false;     // line 2^64 - 1 is present
+    std::uint32_t top_value_ = 0;
 };
 
 }  // namespace ccsim

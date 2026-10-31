@@ -47,11 +47,31 @@ std::uint8_t flags_of(bool hit, bool dirty, bool from_policy = false) noexcept {
 
 }  // namespace
 
+void Hierarchy::check(const HierarchyConfig& config) {
+    if (config.memory_latency_cycles == 0) throw ConfigError("memory_latency: must be at least 1");
+    CacheConfig l1 = config.l1;
+    if (l1.name.empty()) l1.name = "L1";
+    (void)Geometry::from(l1);
+    std::uint64_t worst = std::uint64_t{l1.hit_latency_cycles} + config.memory_latency_cycles;
+    if (config.l2) {
+        CacheConfig l2 = *config.l2;
+        if (l2.name.empty()) l2.name = "L2";
+        if (l2.line_bytes != l1.line_bytes) {
+            throw ConfigError("L2.line: must equal L1.line (" + std::to_string(l1.line_bytes) + ") in this version");
+        }
+        (void)Geometry::from(l2);
+        worst += l2.hit_latency_cycles;
+    }
+    // One access costs at most t1 + t2 + tmem, accumulated and reported as 32 bits.
+    if (worst > 0xFFFFFFFFULL) {
+        throw ConfigError("latency: L1 + L2 + memory latency is " + std::to_string(worst) +
+                          " cycles, above the 32-bit per-access limit 4294967295");
+    }
+}
+
 Hierarchy::Hierarchy(const HierarchyConfig& config, PolicyFactory factory) : config_(config) {
     if (factory == nullptr) throw ConfigError("policy: no policy factory supplied");
-    if (config_.memory_latency_cycles == 0) {
-        throw ConfigError("memory_latency: must be at least 1");
-    }
+    check(config_);
     if (config_.l1.name.empty()) config_.l1.name = "L1";
 
     const Geometry g1 = Geometry::from(config_.l1);
@@ -59,10 +79,6 @@ Hierarchy::Hierarchy(const HierarchyConfig& config, PolicyFactory factory) : con
         config_.l1, factory(config_.l1.policy, g1.sets, g1.ways, config_.seed + 0));
     if (config_.l2) {
         if (config_.l2->name.empty()) config_.l2->name = "L2";
-        if (config_.l2->line_bytes != config_.l1.line_bytes) {
-            throw ConfigError("L2.line: must equal L1.line (" + std::to_string(config_.l1.line_bytes) +
-                              ") in this version");
-        }
         const Geometry g2 = Geometry::from(*config_.l2);
         l2_ = std::make_unique<CacheLevel>(
             *config_.l2, factory(config_.l2->policy, g2.sets, g2.ways, config_.seed + 1));
