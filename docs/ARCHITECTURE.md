@@ -2,7 +2,7 @@
 
 **The top-level source of truth for the project.** Read this first. Where it disagrees with an older document, this one wins, and the older one links back here. Detailed rules live in the documents in [section 18](#18-document-map); this one explains how everything fits together and why.
 
-Status labels follow the repository convention: **Implemented** (merged with tests), **Partially implemented**, **Planned**. Last full revision: 2026-10-29; status labels and QA fixes updated 2026-10-31 ([QA_REPORT.md](../QA_REPORT.md)); the one-off `NOTICE.md` handoff to the configuration track was retired the same day, and its lasting rules live here and in [AGENTS.md](../AGENTS.md).
+Status labels follow the repository convention: **Implemented** (merged with tests), **Partially implemented**, **Planned**. Last full revision: 2026-10-29; status labels and QA fixes updated 2026-10-31 ([QA_REPORT.md](../QA_REPORT.md)), deployment hardening 2026-11-01 (sections 6, 8.1, 9.2, 10); the one-off `NOTICE.md` handoff to the configuration track was retired the same day, and its lasting rules live here and in [AGENTS.md](../AGENTS.md).
 
 ---
 
@@ -323,6 +323,7 @@ Design choices:
 
 - **Push parser.** `TraceParser::feed(chunk)` parses complete lines in place and keeps only the unfinished tail of the last line. Memory is O(chunk), never O(file). Chunk boundaries cannot change the result (tested at every boundary).
 - **Grammar** is format v1, unchanged: `R|W 0x<1-16 hex>`, `#` comments, blank lines, LF/CRLF. Errors are `<source>:<line>: <message>` and stop the upload.
+- **Line length:** a line may be at most 4,096 bytes (`kMaxTraceLineBytes`, comments included). The parser rejects a longer line while it is still arriving, so input without line breaks (a binary file, say) cannot grow the carried-over tail until the WASM heap runs out.
 - **Storage** is struct-of-arrays: `uint64` address plus one bit for R/W, so **8.4 bytes per access** against 16 for an array of structs. The `Trace` is immutable after loading and shared by every session through `shared_ptr`, so comparing 10 configurations doesn't copy it 10 times.
 - **Fingerprint:** a running FNV-1a 64 over the records identifies the trace content. Comparisons refuse to call two runs "the same trace" unless the fingerprints match.
 - **Limits:** `max_accesses` (UI default 50 M) gives a clear error instead of exhausting the WASM heap.
@@ -432,13 +433,13 @@ There are two layers. The **C ABI** (`include/ccsim/wasm/ccsim_api.h`, Implement
 |---|---|
 | `ccsim_trace_begin(name, max)` / `_feed(h, ptr, len)` / `_end(h)` | stream a trace in; returns a handle |
 | `ccsim_trace_size(h)`, `ccsim_trace_fingerprint(h)`, `ccsim_trace_release(h)` | inspect / free; sessions keep their own reference |
-| `ccsim_session_create(trace, cfg[19], 19, flags)` | build a session from the flat config array (layout in the header); flag bit 0 disables 3C |
+| `ccsim_session_create(trace, cfg[19], 19, flags)` | build a session from the flat config array (layout in the header); flag bit 0 disables 3C. Refuses a configuration whose totals on this trace could pass 2^53 (cycles, or memory bytes at up to 4 lines per access), since JSON numbers above that lose precision in JavaScript |
 | `ccsim_session_step(s, n, record)` | step; events encoded into the shared event buffer |
 | `ccsim_session_run(s, max, mask, line)` | run to a breakpoint; returns 0 budget / 1 breakpoint / 2 end |
 | `ccsim_session_seek`, `_reset`, `_position`, `_release` | cursor control |
 | `ccsim_event_buffer()`, `ccsim_event_buffer_words()` | zero-copy view of the last batch (20 header words + 5 per action) |
 | `ccsim_session_slot_states(s, level)`, `_slot_tags(s, level)` | grid snapshot after seeks |
-| `ccsim_session_report_json(s, label, with_reuse)` | `ccsim.simulation/1` document |
+| `ccsim_session_report_json(s, label, with_reuse)` | `ccsim.simulation/1` document. The reuse profile describes the whole trace, so it is included only in a complete report (`"reuse": null` mid-run), and is computed once per trace and line size |
 | `ccsim_compare_json(sessions, n, labels)`, `ccsim_compare_csv(...)` | `ccsim.comparison/1` document / CSV |
 | `ccsim_last_error()` | message for the last failing call. Exceptions never cross the ABI. |
 
@@ -506,7 +507,7 @@ Every value comes from exact integer counters. A rate with a zero denominator is
 
 ### 9.2 How the advanced metrics are computed
 
-- **3C classification** (Hill & Smith). For each level the session keeps a fully associative LRU shadow of the same capacity and a set of seen lines. A real miss to an unseen line is compulsory; a miss the shadow would have hit is conflict; any other miss is capacity. When the real cache beats FA-LRU (possible with LRU on cyclic patterns), the hit is counted under `shadow_only_misses` instead of producing a negative class. Cost: O(1) per access, memory O(distinct lines).
+- **3C classification** (Hill & Smith). For each level the session keeps a fully associative LRU shadow of the same capacity and a set of seen lines. A real miss to an unseen line is compulsory; a miss the shadow would have hit is conflict; any other miss is capacity. When the real cache beats FA-LRU (possible with LRU on cyclic patterns), the hit is counted under `shadow_only_misses` instead of producing a negative class. Cost: O(1) per access, memory O(distinct lines). An **exclusive L2** gets no classification (`three_c: null`, "n/a" on screen): it holds only L1 victims, never the lines its demand lookups miss on, so a shadow fed with those lookups does not model it and its capacity/conflict split would be invented.
 - **Reuse distance / miss-ratio curve** (Mattson stack algorithm). Each line's last-use timestamp is marked in a Fenwick tree. The distance is the number of live marks after it, read with one prefix query, so O(log U) per access. Timestamps are compacted when they run out, so memory is O(distinct lines), not O(trace length). One pass gives the exact FA-LRU miss count for **every** capacity at once. Verified against an O(N²) brute force and two independent FA-LRU implementations.
 - **Timeline:** cumulative counters sampled every ⌈N/512⌉ accesses. Constant memory, and gives miss rate over time, warm-up and phase changes.
 
@@ -516,7 +517,7 @@ Every value comes from exact integer counters. A rate with a zero denominator is
 
 - **Sweeps:** `expand_sweep(base, axes)` takes the cartesian product over L1/L2 size, ways, policy, write policy, write-miss policy, latencies, line size, inclusion, memory latency and seed. Invalid combinations (such as 3-way at 4 KiB, which gives a non-power-of-two set count) are **listed as rejected with the reason**, never silently dropped. The default cap is 256 configurations.
 - **Fairness:** every run in a comparison uses the same `Trace` (checked by fingerprint, `same_trace`). The engine is deterministic, so a delta is exact. There is no noise to run significance tests against. For Random policies the seed is part of the configuration.
-- **Output** (`compare_runs`): for each of 19 metrics, the value per run, the absolute and relative delta against run 0 (baseline), and the winner, using "lower is better" or "higher is better" per metric. Also a human-readable list of configuration differences (`L1.ways: 4 -> 8`).
+- **Output** (`compare_runs`): for each of 19 metrics, the value per run, the absolute and relative delta against run 0 (baseline), and the winner, using "lower is better" or "higher is better" per metric. When two or more runs share the best value there is no winner: `best` is null and `tie` is true in JSON, and the CSV and log say `tie`. Also a human-readable list of configuration differences (`L1.ways: 4 -> 8`).
 - **Export:** `ccsim.comparison/1` JSON for charts, CSV for spreadsheets, and a plain-text **benchmark log** containing each run's exact configuration string, so any result can be reproduced. A live sample is [tests/results/standard_dataset_report.md](../tests/results/standard_dataset_report.md).
 - **Charts:** a grouped bar per metric (one bar per configuration, colour fixed per configuration), a line chart for sweeps (x = swept parameter), miss-ratio curves overlaid, and a delta table with the winner highlighted. Metrics with different units never share an axis.
 
