@@ -117,15 +117,21 @@ interface ReplayProps {
 
 export function Replay({ rec, size = 'md', autoplay = false, intervalMs = 1500, intake = true, ticker = false, label, start = 0 }: ReplayProps) {
   const n = rec.events.length;
-  const [k, setK] = useState(start);
+  // The first access, which a replay restarts from: an autoplaying replay opens on it rather than on
+  // an empty "waiting" case, so it is moving from the first paint (and, under reduced motion, still
+  // shows a real access).
+  const first = Math.min(1, n);
+  const [k, setK] = useState(autoplay && start === 0 ? first : start);
   const [playing, setPlaying] = useState(autoplay && !reducedMotion());
   const [hold, setHold] = useState(false);
 
   useEffect(() => {
     if (!playing || hold) return;
-    const id = window.setTimeout(() => setK((x) => (x >= n ? 0 : x + 1)), k >= n ? intervalMs * 2.5 : intervalMs);
+    // Nothing shown yet steps at once; the end lingers before the replay starts over at the first access.
+    const delay = k === 0 ? 0 : k >= n ? intervalMs * 2.5 : intervalMs;
+    const id = window.setTimeout(() => setK((x) => (x >= n ? first : x + 1)), delay);
     return () => window.clearTimeout(id);
-  }, [playing, hold, k, n, intervalMs]);
+  }, [playing, hold, k, n, first, intervalMs]);
 
   const event = k > 0 ? rec.events[k - 1]! : null;
   const depot = useMemo(() => depotCounts(rec.events, k), [rec, k]);
@@ -140,7 +146,7 @@ export function Replay({ rec, size = 'md', autoplay = false, intervalMs = 1500, 
         <div className="replay-buttons">
           <button type="button" className="icon-btn" onClick={() => { setPlaying(false); setK(0); }} disabled={k === 0} aria-label="Back to the start"><Icon name="reset" /></button>
           <button type="button" className="icon-btn" onClick={() => { setPlaying(false); setK(Math.max(0, k - 1)); }} disabled={k === 0} aria-label="Previous access"><Icon name="back" /></button>
-          <button type="button" className="icon-btn primary" onClick={() => { if (k >= n) setK(0); setPlaying(!playing); }}
+          <button type="button" className="icon-btn primary" onClick={() => { if (k >= n) setK(first); setPlaying(!playing); }}
                   aria-label={playing ? 'Pause' : 'Play'}><Icon name={playing ? 'pause' : 'play'} /></button>
           <button type="button" className="icon-btn" onClick={() => { setPlaying(false); setK(Math.min(n, k + 1)); }} disabled={k >= n} aria-label="Next access"><Icon name="step" /></button>
         </div>
