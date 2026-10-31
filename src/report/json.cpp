@@ -241,6 +241,8 @@ void write_config(JsonWriter& w, const HierarchyConfig& c) {
     w.field("memory_latency_cycles", c.memory_latency_cycles);
     w.field("inclusion", to_string(c.inclusion));
     w.field("seed", c.seed);
+    // Exact copy for JavaScript: a uint64 seed above 2^53 does not survive JSON.parse as a number.
+    w.key("seed_hex").hex(c.seed);
     w.field("description", describe(c));
     w.end_object();
 }
@@ -336,7 +338,10 @@ void write_report(JsonWriter& w, const RunReport& r, std::string_view version) {
         w.key("histogram");
         write_u64_array(w, r.reuse->histogram);
         w.key("fa_lru_miss_ratio").begin_array();  // index k: capacity 2^k lines
-        for (std::uint32_t k = 0; k < 32; ++k) w.value(r.reuse->fa_lru_miss_ratio_pow2(k));
+        for (std::uint32_t k = 0; k < 32; ++k) {
+            // No accesses = zero denominator: null, never 0 (TECHNICAL_DESIGN 6).
+            if (r.reuse->accesses == 0) w.null(); else w.value(r.reuse->fa_lru_miss_ratio_pow2(k));
+        }
         w.end_array();
         w.end_object();
     } else {
