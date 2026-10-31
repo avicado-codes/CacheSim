@@ -219,9 +219,11 @@ TEST_CASE("dataset.fitness_report") {
     md += std::string("| Fingerprint (FNV-1a 64) | `") + fp + "` |\n";
     md += "| Footprint (64 B lines) | " + std::to_string(rp.cold) + " lines = " + num(footprint_kib, "%.1f") + " KiB |\n";
     md += "| Median reuse distance | <= " + std::to_string(rp.median_distance_upper_bound()) + " lines |\n";
-    md += "| In-memory size | " + num(static_cast<double>(t->memory_bytes()) / (1 << 20), "%.1f") + " MiB |\n";
-    md += "| Reuse profile time | " + num(reuse_ms, "%.0f") + " ms |\n";
-    md += "| Engine throughput (default hierarchy, this machine, this build) | " + num(maps, "%.1f") + " M accesses/s |\n\n";
+    md += "| In-memory size | " + num(static_cast<double>(t->memory_bytes()) / (1 << 20), "%.1f") + " MiB |\n\n";
+    // Timings vary per run and build, so they go to the console only: the committed report must
+    // regenerate byte-identically (tests/results/README.md). Tracked numbers: benchmark_report.md.
+    std::printf("timing (this machine, this build; not written to the report): reuse profile %.0f ms, "
+                "engine %.1f M accesses/s\n", reuse_ms, maps);
     md += "## Criteria\n\n| ID | Criterion | Measured | Threshold | Kind | Result |\n|---|---|---|---|---|---|\n";
     for (const Criterion& c : crit) {
         if (c.gate && !c.pass) ++gates_failed;
