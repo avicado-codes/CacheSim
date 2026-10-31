@@ -78,6 +78,8 @@ public:
     explicit TraceParser(std::string source_name, std::uint64_t max_accesses = 0);
 
     // Parses every complete line in `chunk` into `out`; keeps an unterminated tail.
+    // After a TraceError the parser is failed: every later feed/finish rethrows that
+    // first error, so a malformed or oversized trace can never be completed silently.
     void feed(std::string_view chunk, Trace& out);
     // Parses the final unterminated line, if any. Call exactly once after the last feed.
     void finish(Trace& out);
@@ -86,6 +88,7 @@ public:
     std::uint64_t lines() const noexcept { return line_number_; }
 
 private:
+    void feed_lines(std::string_view chunk, Trace& out);
     void consume_line(std::string_view line, Trace& out);
 
     std::string source_;
@@ -93,6 +96,7 @@ private:
     std::uint64_t line_number_ = 0;
     std::uint64_t max_accesses_ = 0;
     bool finished_ = false;
+    std::string error_;  // first TraceError; non-empty = failed
 };
 
 // Reads a whole stream in 1 MiB blocks. Throws TraceError (format) or std::runtime_error (I/O).
