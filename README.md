@@ -2,9 +2,9 @@
 
 A deterministic **L1/L2 cache simulator** written in portable C++17 and delivered as a **website**: configure a hierarchy, upload a memory trace, watch every access live, analyse the run, and benchmark configurations against each other. The engine compiles to WebAssembly and runs in the visitor's browser.
 
-> **Status: v0.1.0, engine phase.** The simulation engine, live-session API, analytics, comparison, browser C ABI, test suites and the validated standard dataset are **Implemented** as library code (Linux-verified). Production replacement policies and `validate()` (configuration track), the `simulate` CLI command and the web UI are **Planned**. Hardware monitoring is **Deferred**.
+> **Status: v0.1.0, engine phase.** The simulation engine, the production LRU / FIFO / Random replacement policies, live-session API, analytics, comparison, browser C ABI, test suites and the validated standard dataset are **Implemented** as library code (Linux-verified). `validate()` (configuration track), the `simulate` CLI command and the web UI are **Planned**. Hardware monitoring is **Deferred**.
 >
-> **New here? Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).** Contributors and AI agents: read [AGENTS.md](AGENTS.md). Configuration track: read [NOTICE.md](NOTICE.md).
+> **New here? Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).** Contributors and AI agents: read [AGENTS.md](AGENTS.md). Latest QA pass: [QA_REPORT.md](QA_REPORT.md).
 
 ## Features
 
@@ -12,7 +12,7 @@ A deterministic **L1/L2 cache simulator** written in portable C++17 and delivere
 |---|---|
 | L1 + optional L2: size, line size, associativity, hit latency, memory latency | Implemented (engine) |
 | Inclusive / exclusive / non-inclusive L2; write-back / write-through; write-allocate / no-write-allocate | Implemented (engine, contract 1.1) |
-| Replacement policies LRU, FIFO, seeded Random | Interface + test stand-ins; production Planned (configuration track) |
+| Replacement policies LRU, FIFO, seeded Random | Implemented (configuration track, `src/policy/`) |
 | Trace format v1 (`.trace`, `.trace.gz` in the browser), streaming parser with line-numbered errors | Implemented |
 | Live simulation API: step, run to breakpoint, seek, reset, per-access action log | Implemented (engine); UI Planned |
 | Analytics: hit/miss rates, AMAT and its exact breakdown, 3C classification, reuse distance and miss-ratio curve, set heatmaps, timeline | Implemented (engine); charts Planned |
@@ -55,37 +55,40 @@ Owner tags: **[shared]** append-only contract, **[config]** configuration track,
 
 ```text
 CacheSim/
-├── README.md  CONTRIBUTING.md
-├── AGENTS.md  NOTICE.md            [shared] rules for agents/contributors · notice to the config track
+├── README.md                       this file: overview, structure, quick start, status
+├── AGENTS.md                       [shared] binding rules for AI agents and contributors
+├── CONTRIBUTING.md                 roles, Git workflow, reviews, Definition of Done
+├── QA_REPORT.md                    repository QA report: latest test completion report
 ├── CMakeLists.txt                  [shared] options; auto-discovers src/<module>/CMakeLists.txt
 ├── .gitattributes  .gitignore      LF line endings; whitelist for tests/results/
-├── .github/workflows/ci.yml        GCC, Clang, ASan + UBSan native suites; Emscripten build + Node smoke
+├── .github/workflows/ci.yml        push/PR + nightly: dataset checksum, GCC/Clang/ASan suites, WASM + Node smoke, bench
 ├── docs/                           ARCHITECTURE [shared] · TECHNICAL_DESIGN · FRONTEND_DESIGN · WORKING_DEMO · DEVELOPMENT · OVERVIEW
 ├── assets/images/                  UI mood-board screenshots
 ├── include/ccsim/                  public headers, one folder per module
-│   ├── sim/types.hpp               [shared] config, stats, enums, policy name table (contract 1.1)
+│   ├── sim/                        types.hpp [shared] contract 1.1 (config, stats, enums, policy name table)
+│   │                               · geometry · line_index · cache_level · events · hierarchy
 │   ├── policy/                     [config] replacement_policy.hpp: ReplacementPolicy, make_policy
 │   ├── config/                     [config] (Planned) validate(), spec parsing, presets
 │   ├── io/                         trace.hpp: streaming parser, compact Trace storage
-│   ├── sim/                        geometry · line_index · cache_level · events · hierarchy
 │   ├── analytics/                  metrics · miss_classifier (3C) · reuse (distance, miss-ratio curve)
 │   ├── session/                    session.hpp: step / run / seek / reset, batch runner
 │   ├── report/                     json.hpp: ccsim.simulation/1 and ccsim.events/1 writers
 │   ├── compare/                    compare.hpp: sweeps, deltas, JSON / CSV / log
 │   ├── wasm/                       ccsim_api.h: C ABI for the browser
 │   └── cli.hpp
-├── src/
-│   ├── io/ sim/ analytics/ session/ report/ compare/   *.cpp + one CMakeLists.txt each
-│   ├── policy/  config/            [config] (Planned) production policies, validate()
-│   ├── wasm/                       C ABI implementation + Emscripten target (built only under emcc)
+├── src/                            one folder per module, each with *.cpp + its own CMakeLists.txt
+│   ├── io/ sim/ analytics/ session/ report/ compare/
+│   ├── policy/                     [config] production LRU, FIFO, Random + make_policy
+│   ├── config/                     [config] (Planned) validate(), spec parsing, presets
+│   ├── wasm/                       ccsim_api.cpp (C ABI) + wasm_main.cpp (Emscripten target, built only under emcc)
 │   └── cli.cpp  main.cpp           the ccsim executable
 ├── tests/
 │   ├── CMakeLists.txt              suites discovered by glob; labels smoke/unit/golden/stress/dataset/bench
 │   ├── support/                    harness, fixtures, reference policies (TEST-ONLY, never shipped)
 │   ├── smoke/                      CLI contract
-│   ├── unit/                       per-module tests (test_policy_*, test_config_* are [config])
+│   ├── unit/                       per-module, edge-case and boundary tests (test_policy_*, test_config_* are [config])
 │   ├── golden/                     WORKING_DEMO Demos A–C, hand-derived expectations
-│   ├── stress/                     invariants over 72 configurations × 1M accesses
+│   ├── stress/                     invariants (72 configs × 1M accesses) · production vs reference · differential oracle
 │   ├── dataset/                    standard dataset integrity, regression baselines, fitness report
 │   ├── bench/                      throughput benchmarks (opt-in)
 │   ├── wasm/smoke.mjs              loads the Emscripten module in Node, checks the ABI on Demo B
@@ -119,7 +122,7 @@ ctest --test-dir build -C Release --output-on-failure
 
 ## Implementation status
 
-Feature status is in the [Features](#features) table. Roadmap and ownership: [CONTRIBUTING.md](CONTRIBUTING.md#3-milestone-plan).
+Feature status is in the [Features](#features) table. Roadmap: [ARCHITECTURE.md section 17](docs/ARCHITECTURE.md#17-roadmap-and-open-decisions). Ownership: [ARCHITECTURE.md section 12](docs/ARCHITECTURE.md#12-ownership-and-merge-conflict-strategy).
 
 ### Platform validation matrix
 
@@ -141,7 +144,7 @@ Feature status is in the [Features](#features) table. Roadmap and ownership: [CO
 4. Possible only through ETW PMU sources: elevated, CPU-specific, custom events since Windows 10 1903.
 5. Cache events are exposed only through Instruments' CPU Counters (full Xcode). v1 documents that manual workflow instead of automating it.
 6. `perf_event_open` has no generic L2 event; CPU-specific raw event codes are required.
-7. 2026-10-29, Kali rolling x86-64: GCC 16.2 Release, GCC Debug with ASan + UBSan, Clang Release; CMake 4.4 + Ninja; warnings as errors; all suites green ([tests/results/](tests/results/)).
+7. 2026-10-31, Kali rolling x86-64: GCC 16.2 Release, GCC Debug with ASan + UBSan, Clang 21.1 Release; CMake 4.4 + Ninja; warnings as errors; all suites green ([tests/results/](tests/results/), [QA_REPORT.md](QA_REPORT.md)).
 
 Monitoring rows below are **Deferred** and kept for the record.
 
@@ -153,7 +156,7 @@ Hardware counters were not validated anywhere yet: the validation VM exposes no 
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Start here.** The whole system: API decision, cache model, live simulation, analytics, comparison, layout, ownership, performance, deployment |
 | [AGENTS.md](AGENTS.md) | Rules for AI agents and contributors |
-| [NOTICE.md](NOTICE.md) | What the configuration track must follow to stay in sync |
+| [QA_REPORT.md](QA_REPORT.md) | Latest QA pass: methods, results, defects and fixes, architecture conformance, open risks |
 | [tests/data/standard/README.md](tests/data/standard/README.md) | The standard benchmark dataset: manifest, fitness evidence, profiles |
 | [docs/TECHNICAL_DESIGN.md](docs/TECHNICAL_DESIGN.md) | Exact v1 rules: cache model, trace format, statistics, interfaces (monitoring deferred) |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Per-OS prerequisites, build, test, debug, troubleshooting |
