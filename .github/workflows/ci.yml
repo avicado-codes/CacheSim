@@ -1,23 +1,45 @@
-# CI: the gates from AGENTS.md section 3 on every push and pull request.
-#   native: GCC and Clang Release with -Werror, plus GCC Debug under ASan + UBSan; all suites.
-#   wasm:   the Emscripten browser module, loaded and checked in Node (tests/wasm/smoke.mjs).
+# CI: the gates from AGENTS.md section 3.
+#   dataset: the standard benchmark trace is byte-identical to its manifest.
+#   native:  GCC and Clang Release with -Werror, plus GCC Debug under ASan + UBSan.
+#   wasm:    the Emscripten browser module, loaded and checked end to end in Node.
+#   bench:   throughput report (nightly and on demand only; timings are noisy on shared runners).
+# Runs on every push and pull request, and nightly on main so project health is reported even
+# when nobody pushes (toolchain or runner-image drift shows up the morning after, not weeks later).
 name: ci
 
 on:
   push:
     branches: [main, "feat/**", "fix/**", "test/**", "docs/**"]
   pull_request:
+  schedule:
+    - cron: "30 2 * * *"  # 02:30 UTC daily, default branch
+  workflow_dispatch:
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
+env:
+  # Full suites (including the long ASan stress run) on nightly and manual runs; push/PR runs
+  # skip only the stress label under ASan, which takes 15+ minutes there.
+  FULL: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+
 jobs:
+  dataset:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Standard dataset integrity
+        # Pinned in tests/data/standard/README.md; never modify the file (AGENTS.md section 5).
+        run: |
+          echo "9619648721957a502f486f5290bd924a5e52592f59dad1b34e1d445a4dd3086e  tests/data/standard/matmul64-O0.trace.gz" | sha256sum -c -
+
   native:
     name: ${{ matrix.name }}
+    needs: dataset
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
@@ -28,16 +50,19 @@ jobs:
             cxx: g++
             type: Release
             flags: ""
+            asan: false
           - name: clang-release
             cc: clang
             cxx: clang++
             type: Release
             flags: ""
+            asan: false
           - name: gcc-asan-ubsan
             cc: gcc
             cxx: g++
             type: Debug
             flags: "-fsanitize=address,undefined -fno-omit-frame-pointer -fno-sanitize-recover=all"
+            asan: true
     steps:
       - uses: actions/checkout@v5
       - name: Install tools
@@ -54,13 +79,25 @@ jobs:
       - name: Build
         run: cmake --build build
       - name: Test
-        # A suite exits 77 (skipped) when zlib is missing; zlib is installed here, so a skip is a failure.
+        # A suite exits 77 (skipped) when zlib or src/policy/ is missing; both exist, so a skip is a failure.
         run: |
           set -o pipefail
-          ctest --test-dir build --output-on-failure --no-tests=error | tee ctest.log
+          args=""
+          if [ "${{ matrix.asan }}" = "true" ] && [ "$FULL" != "true" ]; then args="-LE stress"; fi
+          ctest --test-dir build --output-on-failure --no-tests=error $args | tee ctest.log
           if grep -q 'Skipped' ctest.log; then echo "::error::a suite was skipped"; exit 1; fi
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### ${{ matrix.name }}"
+            echo '```'
+            grep -E 'Test +#|tests passed|tests failed' ctest.log || echo "tests did not run"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   wasm:
+    needs: dataset
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
@@ -78,15 +115,12 @@ jobs:
       - name: Build
         run: cmake --build build-wasm --target ccsim_wasm
       - name: Size
-        run: ls -l build-wasm/src/wasm/ccsim.mjs build-wasm/src/wasm/ccsim.wasm
-      - name: Smoke test in Node
-        # 77 = session checks skipped because src/policy/ (configuration track) is not merged yet.
         run: |
-          set +e
-          node tests/wasm/smoke.mjs build-wasm/src/wasm/ccsim.mjs
-          code=$?
-          if [ "$code" -eq 77 ]; then echo "::warning::wasm session checks skipped: no production policies yet"; exit 0; fi
-          exit $code
+          ls -l build-wasm/src/wasm/ccsim.mjs build-wasm/src/wasm/ccsim.wasm
+          echo "wasm: $(stat -c %s build-wasm/src/wasm/ccsim.wasm) bytes, $(gzip -9c build-wasm/src/wasm/ccsim.wasm | wc -c) gzipped" >> "$GITHUB_STEP_SUMMARY"
+      - name: Smoke test in Node
+        # Production policies are merged, so every check must run: exit 77 (skipped) is a failure.
+        run: node tests/wasm/smoke.mjs build-wasm/src/wasm/ccsim.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: ccsim-wasm
@@ -94,3 +128,20 @@ jobs:
             build-wasm/src/wasm/ccsim.mjs
             build-wasm/src/wasm/ccsim.wasm
           retention-days: 14
+
+  bench:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: native
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build zlib1g-dev
+      - name: Build
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCCSIM_BUILD_BENCHMARKS=ON
+          cmake --build build
+      - name: Benchmark
+        run: |
+          ctest --test-dir build -L bench --output-on-failure
+          cat tests/results/benchmark_report.md >> "$GITHUB_STEP_SUMMARY"
