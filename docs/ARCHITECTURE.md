@@ -376,7 +376,7 @@ Example: Demo B step 4 (`R 0x080`) produces `lookup L1 miss → evict L1 line 0 
 | **Live counters and sparklines** | running totals in the UI, which must equal `report()` at any pause (tested engine-side) |
 | **Execution trace list**: click to seek | `seq`, `op`, `address` |
 
-Large caches are drawn on `<canvas>`, not DOM nodes (a 256 KiB 8-way L2 has 4,096 sets × 8 = 32,768 cells).
+Each level has one look on every page (Home, Learn, Visualize, the live comparison). **L1** is the sorting case: DOM cubbies and envelopes that animate each action, rendering only the rows in view, so a large L1 costs the same as a small one. **L2** is a `<canvas>` grid at any size (a 2 MiB 8-way L2 with 64-byte lines has 4,096 sets × 8 = 32,768 cells), drawing only the rows in view and folding sets together only when a cache is too tall to scroll; the Visualize page lists the accessed L2 set as a table as well.
 
 ### 7.4 Playback model
 
