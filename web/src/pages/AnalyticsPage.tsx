@@ -91,7 +91,7 @@ export function AnalyticsPage() {
       <div className="chart-grid">
         <Chart title="Hits and misses per level" subtitle="Demand accesses at each level" option={charts.hm.option} table={charts.hm.table} />
         <Chart title="Where the cycles go" subtitle="Exact split of total latency (additive, serial model)" option={charts.lat.option} table={charts.lat.table} height={200} />
-        {charts.c3 && <Chart title="Why the misses happened (3C)" subtitle="Compulsory, capacity and conflict misses (Hill and Smith)" option={charts.c3.option} table={charts.c3.table} />}
+        {charts.c3 && <Chart title="Why the misses happened (3C)" subtitle={charts.c3.subtitle} option={charts.c3.option} table={charts.c3.table} />}
         {charts.time && <Chart title="Miss rate over time" subtitle="Cumulative, sampled at about 512 points: warm-up and phase changes" option={charts.time.option} table={charts.time.table} />}
         {charts.mrc && <Chart title="Miss-ratio curve" subtitle={charts.mrc.subtitle} option={charts.mrc.option} table={charts.mrc.table} />}
         {charts.reuse && <Chart title="Reuse distance" subtitle="Distinct lines touched between two uses of a line (log₂ buckets)" option={charts.reuse.option} table={charts.reuse.table} />}

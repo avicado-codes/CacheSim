@@ -24,6 +24,7 @@ export const FORMAT_EXAMPLE = `# ccsim trace, format version 1
 #   address  0x followed by 1 to 16 hexadecimal digits: a 64-bit byte address
 #
 # Everything after a # is a comment. Blank lines are ignored. LF or CRLF line ends.
+# A line may be at most 4,096 bytes long, comment included.
 # Spaces or tabs may surround the two fields; nothing else may follow the address.
 # Access sizes are not modelled: each access touches the cache line holding its address.
 # Any other line rejects the whole file and reports its line number.

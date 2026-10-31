@@ -27,9 +27,20 @@ export interface MetricRow {
   bestIndex: number | null;
 }
 
-/** The engine names the first of equal values as best; say "tie" when it is not unique. */
+/**
+ * The engine's winner, or "tie" / "all equal" when the best value is shared. The engine marks
+ * ties itself (`tie`, with `best` null); equal values at `best` are also treated as a tie, for
+ * documents written before it did.
+ */
 export function bestOf(m: ComparisonMetric, labels: string[]): { text: string; index: number | null } {
-  if (m.best === null || m.better === 'neither') return { text: '—', index: null };
+  if (m.better === 'neither') return { text: '—', index: null };
+  if (m.tie) {
+    const present = m.values.filter((x): x is number => x !== null);
+    const top = m.better === 'lower' ? Math.min(...present) : Math.max(...present);
+    const sharing = present.filter((x) => x === top).length;
+    return { text: sharing === m.values.length ? 'all equal' : 'tie', index: null };
+  }
+  if (m.best === null) return { text: '—', index: null };
   const v = m.values[m.best];
   const ties = m.values.filter((x) => x !== null && x === v).length;
   if (ties > 1) return { text: ties === m.values.length ? 'all equal' : 'tie', index: null };

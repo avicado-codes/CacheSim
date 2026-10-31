@@ -61,6 +61,15 @@ describe('analytics of Demo B (hand-derived)', () => {
     }
   });
 
+  it('an exclusive L2 has no 3C split, and the chart says why instead of showing zeros', () => {
+    const ex = scenario('demo_b_exclusive').report;
+    expect(ex.levels[1]!.three_c).toBeNull();
+    const c = threeC(ex)!;
+    expect(c.table.rows.map((row) => row[0])).toEqual(['L1']);
+    expect(c.subtitle).toContain('Not given for the exclusive L2');
+    expect(threeC(r)!.subtitle).not.toContain('exclusive');
+  });
+
   it('reuse histogram accounts for every access; MRC reaches 0 misses beyond cold ones', () => {
     const h = reuseHistogram(r)!.table;
     expect(h.rows.reduce((s, row) => s + Number(row[1]!.replace(/,/g, '')), 0)).toBe(10);
@@ -90,6 +99,14 @@ describe('comparison (engine document, hand-derived expectations)', () => {
     const miss = rows.find((x) => x.key === 'l1.miss_rate')!;
     expect(miss.values).toEqual(['75.00%', '83.33%']);
     expect(miss.best).toBe('FIFO 3 lines');
+  });
+
+  it('the engine marks ties itself and names no winner', () => {
+    const compulsory = comparison('demo_a').metrics.find((m) => m.key === 'l1.compulsory')!;
+    expect(compulsory).toMatchObject({ values: [2, 2], best: null, tie: true });
+    const m = { key: 'x', label: 'x', unit: 'count', better: 'lower' as const, values: [3, 2, 2], delta_abs: [], delta_rel: [],
+                best: null, tie: true };
+    expect(bestOf(m, ['a', 'b', 'c'])).toEqual({ text: 'tie', index: null });
   });
 
   it('a tie is never reported as a winner', () => {

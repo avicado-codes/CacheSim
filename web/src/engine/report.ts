@@ -116,7 +116,10 @@ export interface ComparisonMetric {
   values: Rate[];
   delta_abs: Rate[];
   delta_rel: Rate[];
+  /** Index of the single winning run; null when no value exists or the best value is shared. */
   best: number | null;
+  /** Two or more runs share the best value (the engine then names no winner). */
+  tie?: boolean;
 }
 
 export interface ComparisonDoc {

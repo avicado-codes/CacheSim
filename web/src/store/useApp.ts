@@ -321,7 +321,11 @@ export const useApp = create<AppState>((set, get) => {
       await run.client.request({ t: 'session.seek', id: run.sessionId, position: target - 1 }, 'ok');
       const r = await run.client.request({ t: 'session.step', id: run.sessionId, n: 1, record: true }, 'events');
       const events = decodeEvents(r.words);
-      set((s) => ({ position: r.position, current: events.at(-1) ?? null, report: null,
+      const current = events.at(-1) ?? null;
+      // The log never lists accesses after the cursor: drop them on a backward move, and put
+      // the access now shown at the end (a forward jump leaves a gap, which the # column shows).
+      set((s) => ({ position: r.position, current, report: null,
+                    recent: [...s.recent.filter((e) => e.seq < target - 1), ...(current ? [current] : [])].slice(-RECENT_EVENTS),
                     reachedEnd: s.reachedEnd || r.position >= run.trace.accesses }));
       await get().refreshGrids();
     },

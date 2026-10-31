@@ -115,11 +115,16 @@ export function latencyBreakdown(r: SimulationReport): { option: ChartOption; ta
   };
 }
 
-export function threeC(r: SimulationReport): { option: ChartOption; table: TableData } | null {
+export function threeC(r: SimulationReport): { option: ChartOption; table: TableData; subtitle: string } | null {
   const levels = r.levels.filter((l) => l.three_c);
   if (levels.length === 0) return null;
   const kinds = ['compulsory', 'capacity', 'conflict'] as const;
+  // The engine reports no split for an exclusive L2 (it holds only L1 victims, which the
+  // fully associative model does not follow); say so rather than drop the level silently.
+  const exclusiveL2 = r.config.inclusion === 'exclusive' && r.levels.length > 1 && !r.levels[1]!.three_c;
   return {
+    subtitle: `Compulsory, capacity and conflict misses (Hill and Smith)${
+      exclusiveL2 ? '. Not given for the exclusive L2, which holds only L1 victims.' : ''}`,
     option: {
       ...baseOption(),
       xAxis: { type: 'category', data: levels.map((l) => l.name), ...axisStyle() },

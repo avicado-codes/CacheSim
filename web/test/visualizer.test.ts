@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { SLOT_DIRTY, SLOT_VALID } from '../src/engine/abi';
 import { DEMO_CONFIGS, geometry } from '../src/engine/config';
 import { decodeEvents } from '../src/engine/events';
+import { gridLayout, MAX_TRACK_HEIGHT, scrollToShow, visibleRows } from '../src/components/GridCanvas';
 import { highlights, narrate } from '../src/lib/narrate';
 import { scenario, SCENARIOS } from './fixtures';
 
@@ -70,5 +71,42 @@ describe('narration restates the engine actions in order', () => {
   it('geometry of Demo B: L1 2 sets, L2 4 sets', () => {
     expect(geometry(DEMO_CONFIGS.demo_b.l1)?.sets).toBe(2);
     expect(geometry(DEMO_CONFIGS.demo_b.l2)?.sets).toBe(4);
+  });
+});
+
+describe('canvas grid layout keeps every row readable', () => {
+  it('the default L2 (512 sets) gets full rows, one set each, not 4-pixel slivers', () => {
+    const l = gridLayout(512);
+    expect(l).toMatchObject({ rowH: 22, setsPerRow: 1, rows: 512, height: 512 * 22 });
+  });
+
+  it('small caches keep their tall rows', () => {
+    expect(gridLayout(64)).toMatchObject({ rowH: 28, setsPerRow: 1, rows: 64 });
+  });
+
+  it('huge caches fold sets so the track stays within what a browser can scroll', () => {
+    const l = gridLayout(1 << 20);
+    expect(l.rowH).toBe(22);
+    expect(l.setsPerRow).toBeGreaterThan(1);
+    expect(l.height).toBeLessThanOrEqual(MAX_TRACK_HEIGHT);
+    expect(l.rows * l.setsPerRow).toBeGreaterThanOrEqual(1 << 20);
+  });
+
+  it('draws only the rows in view', () => {
+    const l = gridLayout(512);
+    expect(visibleRows(l, 0, 480)).toEqual({ first: 0, last: 21 });
+    expect(visibleRows(l, 512 * 22 - 480, 480)).toEqual({ first: 490, last: 511 });
+  });
+
+  it('scrolls the accessed set to the middle, and only when it is out of view', () => {
+    const l = gridLayout(512);
+    expect(scrollToShow(l, 5, 0, 480)).toBeNull();
+    // The screenshot case: set 511 is the last row; it ends up fully visible at the bottom.
+    const top = scrollToShow(l, 511, 0, 480)!;
+    expect(top).toBe(512 * 22 - 480);
+    expect(visibleRows(l, top, 480).last).toBe(511);
+    // A middle set is centred.
+    const mid = scrollToShow(l, 232, 0, 480)!;
+    expect(232 * 22 - mid).toBe(Math.round((480 - 22) / 2));
   });
 });

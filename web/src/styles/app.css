@@ -44,8 +44,9 @@
   --st-around: #6b4fa0;
 
   --cell-empty: #e6eae4;
-  --cell-clean: #b9d4c4;
-  --cell-dirty: #f0b3bd;
+  --cell-clean: #367a5a;
+  --cell-dirty: #b83c54;
+  --cell-ink: #ffffff;
 
   --focus: #1d3f8f;
   --shadow-1: 0 1px 2px rgba(22, 24, 29, 0.08), 0 2px 6px rgba(22, 24, 29, 0.06);
@@ -96,8 +97,9 @@
   --st-around: #7c5cc0;
 
   --cell-empty: #1f2d27;
-  --cell-clean: #3c6b55;
-  --cell-dirty: #8a3242;
+  --cell-clean: #6bb894;
+  --cell-dirty: #e0647a;
+  --cell-ink: #0f1714;
 
   --focus: #8fb0ff;
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.25);
@@ -495,7 +497,8 @@ main { outline: none; }
 .case-lg .env-line { font-size: 1.02rem; }
 
 .grid-scroll { max-height: 480px; overflow: auto; border-radius: 6px; background: var(--case-hole); }
-.grid-scroll canvas { display: block; }
+.grid-track { position: relative; }
+.grid-canvas { display: block; position: sticky; top: 0; }
 .grid-caption { font: 0.75rem/1.4 var(--font-mono); color: var(--case-ink-2); min-height: 1.4em; margin-top: 0.35rem; }
 
 /* ---------- Visualize ---------- */
