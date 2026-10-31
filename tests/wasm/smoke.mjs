@@ -5,7 +5,8 @@
 //
 // Usage: node tests/wasm/smoke.mjs <path/to/ccsim.mjs>
 // Exit: 0 pass, 1 fail, 77 skipped (same convention as the native suites). Session checks
-// need production policies (src/policy/); without them they are reported as SKIPPED.
+// need the production policies (src/policy/, merged); a build without them reports SKIPPED,
+// which CI treats as a failure.
 
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
@@ -72,7 +73,7 @@ const session = M._ccsim_session_create(trace, cfg, CONFIG_WORDS, 0);
 let skipped = false;
 if (session === 0 && lastError().includes('no replacement policies')) {
     skipped = true;
-    console.log('SKIPPED session checks: no production policies linked (src/policy/ pending)');
+    console.log('SKIPPED session checks: no production policies linked into this build');
 } else {
     check(session > 0, `session_create (${lastError()})`);
     check(M._ccsim_session_step(session, 4, 1) === 4, 'step 4 recorded');

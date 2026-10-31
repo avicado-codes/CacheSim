@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -37,6 +38,7 @@ struct State {
     std::vector<std::unique_ptr<Session>> sessions;
     std::vector<std::string> session_sources;
     std::vector<std::uint32_t> events;
+    std::vector<AccessEvent> scratch;  // reused by step(record) so a frame does not allocate
     std::string error;
     std::string text;  // last returned string
 };
@@ -54,14 +56,11 @@ T* lookup(std::vector<std::unique_ptr<T>>& v, std::int32_t h) {
     return v[static_cast<std::size_t>(h) - 1].get();
 }
 
+// Handles are never reused: a released slot stays empty (8 bytes), so a stale handle held by
+// JavaScript fails with "invalid handle" instead of silently reaching a newer object.
 template <class T>
 std::int32_t store(std::vector<std::unique_ptr<T>>& v, std::unique_ptr<T> p) {
-    for (std::size_t i = 0; i < v.size(); ++i) {
-        if (!v[i]) {
-            v[i] = std::move(p);
-            return static_cast<std::int32_t>(i + 1);
-        }
-    }
+    if (v.size() >= 0x7FFFFFFFU) throw std::length_error("handle space exhausted");
     v.push_back(std::move(p));
     return static_cast<std::int32_t>(v.size());
 }
@@ -209,7 +208,7 @@ int32_t ccsim_session_create(int32_t trace, const uint64_t* config, uint32_t wor
         TraceUpload* t = lookup(state().traces, trace);
         if (!t->done) throw std::logic_error("call ccsim_trace_end before creating a session");
         if (state().factory == nullptr) {
-            throw std::logic_error("no replacement policies are linked into this build (src/policy/ pending)");
+            throw std::logic_error("no replacement policies are linked into this build (built without src/policy/)");
         }
         SessionOptions opt;
         opt.classify_misses = (flags & 1U) == 0;
@@ -251,10 +250,10 @@ int32_t ccsim_session_step(int32_t session, uint32_t n, uint32_t record) {
         auto& out = state().events;
         out.clear();
         if (record == 0) return static_cast<std::int32_t>(s->step(n, nullptr));
-        // Bounded scratch: record in slices so memory stays O(slice), not O(n).
+        // Events are recorded in slices so the AccessEvent scratch stays O(slice); the encoded
+        // output is O(n) words (20 + 5 per action each), so callers step in frame-sized batches.
         constexpr std::uint32_t kSlice = 4096;
-        std::vector<AccessEvent> events;
-        events.reserve(n < kSlice ? n : kSlice);
+        std::vector<AccessEvent>& events = state().scratch;
         std::size_t done = 0;
         while (done < n) {
             events.clear();
