@@ -2,7 +2,7 @@
 
 **The top-level source of truth for the project.** Read this first. Where it disagrees with an older document, this one wins, and the older one links back here. Detailed rules live in the documents in [section 18](#18-document-map); this one explains how everything fits together and why.
 
-Status labels follow the repository convention: **Implemented** (merged with tests), **Partially implemented**, **Planned**. Last full revision: 2026-10-29; status labels and QA fixes updated 2026-10-31 ([QA_REPORT.md](../QA_REPORT.md)); the one-off `NOTICE.md` handoff to the configuration track was retired the same day, and its lasting rules live here and in [AGENTS.md](../AGENTS.md).
+Status labels follow the repository convention: **Implemented** (merged with tests), **Partially implemented**, **Planned**. Last full revision: 2026-10-29; status labels and QA fixes updated 2026-10-31 ([QA_REPORT.md](QA_REPORT.md)), deployment hardening 2026-11-01 (sections 6, 8.1, 9.2, 10); the one-off `NOTICE.md` handoff to the configuration track was retired the same day, and its lasting rules live here and in [AGENTS.md](../AGENTS.md).
 
 ---
 
@@ -323,6 +323,7 @@ Design choices:
 
 - **Push parser.** `TraceParser::feed(chunk)` parses complete lines in place and keeps only the unfinished tail of the last line. Memory is O(chunk), never O(file). Chunk boundaries cannot change the result (tested at every boundary).
 - **Grammar** is format v1, unchanged: `R|W 0x<1-16 hex>`, `#` comments, blank lines, LF/CRLF. Errors are `<source>:<line>: <message>` and stop the upload.
+- **Line length:** a line may be at most 4,096 bytes (`kMaxTraceLineBytes`, comments included). The parser rejects a longer line while it is still arriving, so input without line breaks (a binary file, say) cannot grow the carried-over tail until the WASM heap runs out.
 - **Storage** is struct-of-arrays: `uint64` address plus one bit for R/W, so **8.4 bytes per access** against 16 for an array of structs. The `Trace` is immutable after loading and shared by every session through `shared_ptr`, so comparing 10 configurations doesn't copy it 10 times.
 - **Fingerprint:** a running FNV-1a 64 over the records identifies the trace content. Comparisons refuse to call two runs "the same trace" unless the fingerprints match.
 - **Limits:** `max_accesses` (UI default 50 M) gives a clear error instead of exhausting the WASM heap.
@@ -375,7 +376,7 @@ Example: Demo B step 4 (`R 0x080`) produces `lookup L1 miss → evict L1 line 0 
 | **Live counters and sparklines** | running totals in the UI, which must equal `report()` at any pause (tested engine-side) |
 | **Execution trace list**: click to seek | `seq`, `op`, `address` |
 
-Large caches are drawn on `<canvas>`, not DOM nodes (a 256 KiB 8-way L2 has 4,096 sets × 8 = 32,768 cells).
+Each level has one look on every page (Home, Learn, Visualize, the live comparison). **L1** is the sorting case: DOM cubbies and envelopes that animate each action, rendering only the rows in view, so a large L1 costs the same as a small one. **L2** is a `<canvas>` grid at any size (a 2 MiB 8-way L2 with 64-byte lines has 4,096 sets × 8 = 32,768 cells), drawing only the rows in view and folding sets together only when a cache is too tall to scroll; the Visualize page lists the accessed L2 set as a table as well.
 
 ### 7.4 Playback model
 
@@ -432,13 +433,13 @@ There are two layers. The **C ABI** (`include/ccsim/wasm/ccsim_api.h`, Implement
 |---|---|
 | `ccsim_trace_begin(name, max)` / `_feed(h, ptr, len)` / `_end(h)` | stream a trace in; returns a handle |
 | `ccsim_trace_size(h)`, `ccsim_trace_fingerprint(h)`, `ccsim_trace_release(h)` | inspect / free; sessions keep their own reference |
-| `ccsim_session_create(trace, cfg[19], 19, flags)` | build a session from the flat config array (layout in the header); flag bit 0 disables 3C |
+| `ccsim_session_create(trace, cfg[19], 19, flags)` | build a session from the flat config array (layout in the header); flag bit 0 disables 3C. Refuses a configuration whose totals on this trace could pass 2^53 (cycles, or memory bytes at up to 4 lines per access), since JSON numbers above that lose precision in JavaScript |
 | `ccsim_session_step(s, n, record)` | step; events encoded into the shared event buffer |
 | `ccsim_session_run(s, max, mask, line)` | run to a breakpoint; returns 0 budget / 1 breakpoint / 2 end |
 | `ccsim_session_seek`, `_reset`, `_position`, `_release` | cursor control |
 | `ccsim_event_buffer()`, `ccsim_event_buffer_words()` | zero-copy view of the last batch (20 header words + 5 per action) |
 | `ccsim_session_slot_states(s, level)`, `_slot_tags(s, level)` | grid snapshot after seeks |
-| `ccsim_session_report_json(s, label, with_reuse)` | `ccsim.simulation/1` document |
+| `ccsim_session_report_json(s, label, with_reuse)` | `ccsim.simulation/1` document. The reuse profile describes the whole trace, so it is included only in a complete report (`"reuse": null` mid-run), and is computed once per trace and line size |
 | `ccsim_compare_json(sessions, n, labels)`, `ccsim_compare_csv(...)` | `ccsim.comparison/1` document / CSV |
 | `ccsim_last_error()` | message for the last failing call. Exceptions never cross the ABI. |
 
@@ -449,7 +450,7 @@ Why a flat integer config and binary events instead of JSON everywhere: the conf
 ### 8.2 Worker protocol (UI ⇄ worker)
 
 ```ts
-// web/src/engine/protocol.ts (Planned): the only API UI code uses.
+// web/src/engine/protocol.ts: the only API UI code uses.
 type ToEngine =
   | { t: "trace.begin"; name: string; maxAccesses: number }
   | { t: "trace.chunk"; bytes: ArrayBuffer }                 // transferred
@@ -506,7 +507,7 @@ Every value comes from exact integer counters. A rate with a zero denominator is
 
 ### 9.2 How the advanced metrics are computed
 
-- **3C classification** (Hill & Smith). For each level the session keeps a fully associative LRU shadow of the same capacity and a set of seen lines. A real miss to an unseen line is compulsory; a miss the shadow would have hit is conflict; any other miss is capacity. When the real cache beats FA-LRU (possible with LRU on cyclic patterns), the hit is counted under `shadow_only_misses` instead of producing a negative class. Cost: O(1) per access, memory O(distinct lines).
+- **3C classification** (Hill & Smith). For each level the session keeps a fully associative LRU shadow of the same capacity and a set of seen lines. A real miss to an unseen line is compulsory; a miss the shadow would have hit is conflict; any other miss is capacity. When the real cache beats FA-LRU (possible with LRU on cyclic patterns), the hit is counted under `shadow_only_misses` instead of producing a negative class. Cost: O(1) per access, memory O(distinct lines). An **exclusive L2** gets no classification (`three_c: null`, "n/a" on screen): it holds only L1 victims, never the lines its demand lookups miss on, so a shadow fed with those lookups does not model it and its capacity/conflict split would be invented.
 - **Reuse distance / miss-ratio curve** (Mattson stack algorithm). Each line's last-use timestamp is marked in a Fenwick tree. The distance is the number of live marks after it, read with one prefix query, so O(log U) per access. Timestamps are compacted when they run out, so memory is O(distinct lines), not O(trace length). One pass gives the exact FA-LRU miss count for **every** capacity at once. Verified against an O(N²) brute force and two independent FA-LRU implementations.
 - **Timeline:** cumulative counters sampled every ⌈N/512⌉ accesses. Constant memory, and gives miss rate over time, warm-up and phase changes.
 
@@ -516,7 +517,7 @@ Every value comes from exact integer counters. A rate with a zero denominator is
 
 - **Sweeps:** `expand_sweep(base, axes)` takes the cartesian product over L1/L2 size, ways, policy, write policy, write-miss policy, latencies, line size, inclusion, memory latency and seed. Invalid combinations (such as 3-way at 4 KiB, which gives a non-power-of-two set count) are **listed as rejected with the reason**, never silently dropped. The default cap is 256 configurations.
 - **Fairness:** every run in a comparison uses the same `Trace` (checked by fingerprint, `same_trace`). The engine is deterministic, so a delta is exact. There is no noise to run significance tests against. For Random policies the seed is part of the configuration.
-- **Output** (`compare_runs`): for each of 19 metrics, the value per run, the absolute and relative delta against run 0 (baseline), and the winner, using "lower is better" or "higher is better" per metric. Also a human-readable list of configuration differences (`L1.ways: 4 -> 8`).
+- **Output** (`compare_runs`): for each of 19 metrics, the value per run, the absolute and relative delta against run 0 (baseline), and the winner, using "lower is better" or "higher is better" per metric. When two or more runs share the best value there is no winner: `best` is null and `tie` is true in JSON, and the CSV and log say `tie`. Also a human-readable list of configuration differences (`L1.ways: 4 -> 8`).
 - **Export:** `ccsim.comparison/1` JSON for charts, CSV for spreadsheets, and a plain-text **benchmark log** containing each run's exact configuration string, so any result can be reproduced. A live sample is [tests/results/standard_dataset_report.md](../tests/results/standard_dataset_report.md).
 - **Charts:** a grouped bar per metric (one bar per configuration, colour fixed per configuration), a line chart for sweeps (x = swept parameter), miss-ratio curves overlaid, and a delta table with the winner highlighted. Metrics with different units never share an axis.
 
@@ -526,9 +527,9 @@ Every value comes from exact integer counters. A rate with a zero denominator is
 CacheSim/
 ├── AGENTS.md                  operating manual for AI agents and new contributors
 ├── README.md  CONTRIBUTING.md
-├── QA_REPORT.md               repository QA report (test completion report, kept current)
 ├── CMakeLists.txt             root: options + auto-discovers src/*/CMakeLists.txt (rarely edited)
 ├── docs/                      ARCHITECTURE (this) · TECHNICAL_DESIGN · FRONTEND_DESIGN · WORKING_DEMO · DEVELOPMENT · OVERVIEW
+│                              QA_REPORT (test completion report, kept current) · FRONTEND_FIXES
 ├── assets/images/             UI mood-board screenshots
 ├── include/ccsim/             public headers, one folder per module
 │   ├── sim/types.hpp          SHARED CONTRACT (config + stats): append-only
@@ -550,7 +551,7 @@ CacheSim/
 │   ├── data/golden/           Demo A–C traces (hand-derived expectations)
 │   ├── data/standard/         THE standard dataset + manifest
 │   └── results/               generated evidence (curated files committed)
-└── web/                       frontend (Planned, frontend track)
+└── web/                       React + TypeScript website (frontend track)
 ```
 
 Dependency direction (an arrow means "may include"). There are no cycles, and nothing below `wasm` knows the browser exists:
@@ -673,8 +674,8 @@ flowchart LR
 
 - **Independent oracles:** golden numbers come from hand derivations in [WORKING_DEMO.md](WORKING_DEMO.md), never from this implementation's output. Analytics are cross-checked by independent implementations (brute force, FA-LRU shadow, engine). The engine itself is cross-checked by a second, naive model of section 5.3 fuzzed over 3,000 random configurations (`differential.*`), comparing every counter and every final slot.
 - **Regression baselines** for the standard dataset are pinned and labelled as such ([tests/data/standard/README.md](../tests/data/standard/README.md)).
-- **Toolchains verified on Linux:** GCC 16 Release, GCC Debug + AddressSanitizer + UBSan, Clang Release, all with `-Werror -Wall -Wextra -Wpedantic -Wshadow -Wconversion`. Windows, macOS and Emscripten are Not tested.
-- **Frontend (Planned):** Vitest for protocol decoding and stores; Playwright end-to-end that loads the WASM, runs Demo B, and asserts the grid equals the engine events (AC-11).
+- **Toolchains verified on Linux:** GCC 16 Release, GCC Debug + AddressSanitizer + UBSan, Clang Release, all with `-Werror -Wall -Wextra -Wpedantic -Wshadow -Wconversion`. Emscripten 4.0.10 verified on Linux (module built with `-Werror`, `tests/wasm/smoke.mjs` passes). Windows and macOS are Not tested.
+- **Frontend:** Vitest suites (`web/test/`) for config, trace and event decoding, stores, views and the visualiser, all against engine-generated fixtures that `unit.web_fixtures_current` keeps current. AC-11 is checked there: after each Demo B access the highlights must match the engine snapshot, and the final grid must match WORKING_DEMO step 10. **Planned:** a Playwright end-to-end that loads the WASM in a real browser; browser checks so far were run by hand in headless Chromium.
 
 ## 15. Build, CI and deployment
 
@@ -682,11 +683,11 @@ flowchart LR
 flowchart LR
     PR["Pull request"] --> N["native job<br/>cmake + ctest<br/>GCC, Clang, ASan"]
     PR --> E["wasm job<br/>emcmake cmake<br/>build ccsim.mjs + .wasm"]
-    E --> F["web job<br/>npm ci · vitest · vite build ·<br/>playwright (Demo B)"]
+    E --> F["web job<br/>npm ci · typecheck · vitest ·<br/>vite build (Playwright Planned)"]
     N --> GATE{"all green?"}
     F --> GATE
-    GATE -- yes --> PREV["preview deploy<br/>(per-PR URL)"]
-    GATE -- "merge to main" --> PROD["production deploy<br/>Cloudflare Pages"]
+    GATE -- yes --> PREV["preview deploy<br/>(per-PR URL, Planned)"]
+    GATE -- "merge to main" --> PROD["production deploy<br/>Cloudflare Pages (Planned)"]
 ```
 
 | Item | Choice |
@@ -709,8 +710,8 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    P1["Phase 1 (done)<br/>engine · production policies ·<br/>analytics · compare · C ABI ·<br/>tests · dataset"] --> P2["Phase 2 (now)<br/>validate(), presets, spec parsing<br/>(config track) ·<br/>WASM build in CI ·<br/>web UI: configure, upload, visualiser"]
-    P2 --> P3["Phase 3<br/>analytics + compare views ·<br/>deploy · advanced policies ·<br/>education content"]
+    P1["Phase 1 (done)<br/>engine · production policies ·<br/>analytics · compare · C ABI ·<br/>tests · dataset"] --> P2["Phase 2 (now)<br/>done: WASM build in CI · website<br/>(configure, upload, visualiser,<br/>analytics, compare) ·<br/>open: validate(), presets,<br/>spec parsing (config track)"]
+    P2 --> P3["Phase 3<br/>deploy · advanced policies ·<br/>education content"]
     P3 --> P4["Phase 4 (optional)<br/>share links service ·<br/>OPT · prefetchers · checkpoints"]
 ```
 
@@ -735,7 +736,7 @@ flowchart LR
 | [OVERVIEW.md](OVERVIEW.md) | a one-page tour | current |
 | [../tests/data/standard/README.md](../tests/data/standard/README.md) | the standard dataset | current |
 | [../AGENTS.md](../AGENTS.md) | agent and contributor rules | current |
-| [../QA_REPORT.md](../QA_REPORT.md) | latest QA pass: methods, results, defects, open risks | current |
+| [QA_REPORT.md](QA_REPORT.md) | latest QA pass: methods, results, defects, open risks | current |
 
 ## 19. Glossary
 

@@ -134,3 +134,18 @@ TEST_CASE("session.random_policy_is_reproducible") {
     const SimulationResult d = simulate(*t, c);
     CHECK(a.l1.misses != d.l1.misses);  // the seed matters
 }
+
+TEST_CASE("session.three_c_not_reported_for_exclusive_l2") {
+    // An exclusive L2 holds only L1 victims, so a shadow fed with its demand lookups does not
+    // model it: L2 gets no 3C split (null in JSON), while L1 keeps its classification.
+    const auto t = trace_from_text("R 0x000\nR 0x040\nR 0x080\nR 0x000\nR 0x0C0\nR 0x040\n");
+    for (InclusionPolicy inc : {InclusionPolicy::NonInclusive, InclusionPolicy::Inclusive, InclusionPolicy::Exclusive}) {
+        HierarchyConfig c = default_hierarchy();
+        c.inclusion = inc;
+        Session s(t, c, kRef);
+        s.run_to_end();
+        CHECK(s.three_c(LevelId::L1).has_value());
+        CHECK_EQ(s.three_c(LevelId::L2).has_value(), inc != InclusionPolicy::Exclusive);
+        CHECK_EQ(s.report("r").levels[1].three_c.has_value(), inc != InclusionPolicy::Exclusive);
+    }
+}

@@ -30,6 +30,11 @@ struct TraceError : std::runtime_error {
     using std::runtime_error::runtime_error;
 };
 
+// Longest accepted line, in bytes, before the line end (comments included). A record itself needs
+// about 20 bytes, so this only rejects garbage, such as a binary file with no line breaks,
+// which would otherwise grow the parser's carried-over tail until the WASM heap runs out.
+inline constexpr std::size_t kMaxTraceLineBytes = 4096;
+
 // Parses one line of format v1 (without its '\n'). Returns nullopt for blank and
 // comment-only lines. Throws TraceError naming `source` and `line_number`.
 std::optional<MemoryAccess> parse_trace_line(std::string_view line, std::string_view source,
@@ -90,6 +95,7 @@ public:
 private:
     void feed_lines(std::string_view chunk, Trace& out);
     void consume_line(std::string_view line, Trace& out);
+    void keep_tail(std::string_view part);  // appends to tail_, enforcing kMaxTraceLineBytes
 
     std::string source_;
     std::string tail_;

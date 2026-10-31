@@ -6,15 +6,15 @@ l1.miss_rate,ratio,lower,0.0220514,0.00513241,0.00700045,0.0119021,0.0208895,-0.
 l1.read_miss_rate,ratio,lower,0.0125743,0.00519598,0.00771135,0.0133967,0.0238236,-0.586778,-0.386737,0.065405,0.894628,"L1 2-way"
 l1.write_miss_rate,ratio,lower,0.0812356,0.00473544,0.00256086,0.00256801,0.00256622,-0.941707,-0.968476,-0.968388,-0.96841,"L1 4-way"
 l1.mpka,count,lower,22.0514,5.13241,7.00045,11.9021,20.8895,-0.767252,-0.682539,-0.460257,-0.0526881,"L1 2-way"
-l1.compulsory,count,lower,2934,2934,2934,2934,2934,0,0,0,0,"L1 1-way"
+l1.compulsory,count,lower,2934,2934,2934,2934,2934,0,0,0,0,tie
 l1.capacity,count,lower,1874,3206,5419,9634,17827,0.710779,1.89168,4.14088,8.51281,"L1 1-way"
 l1.conflict,count,lower,84529,14653,20008,35651,63869,-0.826651,-0.7633,-0.578239,-0.244413,"L1 2-way"
 l1.evictions,count,lower,88825,20281,27849,47707,84118,-0.771675,-0.686473,-0.46291,-0.0529918,"L1 2-way"
 l1.writebacks,count,lower,47610,3397,2170,2175,2172,-0.928649,-0.954421,-0.954316,-0.954379,"L1 4-way"
-l1.back_invalidations,count,lower,0,0,0,0,0,n/a,n/a,n/a,n/a,"L1 1-way"
+l1.back_invalidations,count,lower,0,0,0,0,0,n/a,n/a,n/a,n/a,tie
 l2.local_miss_rate,ratio,lower,0.0328419,0.141105,0.103452,0.0608474,0.0346686,3.29649,2.14999,0.852734,0.0556186,"L1 1-way"
-l2.global_miss_rate,ratio,lower,0.00072421,0.00072421,0.00072421,0.00072421,0.00072421,0,0,0,0,"L1 1-way"
-l2.conflict,count,lower,0,0,0,0,0,n/a,n/a,n/a,n/a,"L1 1-way"
-memory.reads,count,lower,2934,2934,2934,2934,2934,0,0,0,0,"L1 1-way"
-memory.writes,count,lower,0,0,0,0,0,n/a,n/a,n/a,n/a,"L1 1-way"
-memory.bytes_per_access,bytes,lower,0.0463494,0.0463494,0.0463494,0.0463494,0.0463494,0,0,0,0,"L1 1-way"
+l2.global_miss_rate,ratio,lower,0.00072421,0.00072421,0.00072421,0.00072421,0.00072421,0,0,0,0,tie
+l2.conflict,count,lower,0,0,0,0,0,n/a,n/a,n/a,n/a,tie
+memory.reads,count,lower,2934,2934,2934,2934,2934,0,0,0,0,tie
+memory.writes,count,lower,0,0,0,0,0,n/a,n/a,n/a,n/a,tie
+memory.bytes_per_access,bytes,lower,0.0463494,0.0463494,0.0463494,0.0463494,0.0463494,0,0,0,0,tie

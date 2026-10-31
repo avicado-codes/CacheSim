@@ -1,0 +1,16 @@
+# Cloudflare Pages headers (ARCHITECTURE section 15). Same-origin scripts plus WASM
+# compilation only; no third-party scripts. Workers are same-origin module scripts.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/engine/*.wasm
+  Content-Type: application/wasm
+  Cache-Control: public, max-age=3600
+
+/engine/*.mjs
+  Cache-Control: public, max-age=3600

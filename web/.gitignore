@@ -1,0 +1,5 @@
+node_modules/
+dist/
+# Copied from the Emscripten build by `npm run wasm:copy`; never committed.
+public/engine/
+*.tsbuildinfo

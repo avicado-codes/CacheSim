@@ -1,0 +1,16 @@
+metric,unit,better,"direct-mapped","2-way","delta_rel 2-way",best
+amat_cycles,cycles,lower,101,34.3333,-0.660066,"2-way"
+speedup_vs_memory,x,higher,0.990099,2.91262,1.94175,"2-way"
+total_latency_cycles,cycles,lower,606,206,-0.660066,"2-way"
+l1.miss_rate,ratio,lower,1,0.333333,-0.666667,"2-way"
+l1.read_miss_rate,ratio,lower,1,0.333333,-0.666667,"2-way"
+l1.mpka,count,lower,1000,333.333,-0.666667,"2-way"
+l1.compulsory,count,lower,2,2,0,tie
+l1.capacity,count,lower,0,0,n/a,tie
+l1.conflict,count,lower,4,0,-1,"2-way"
+l1.evictions,count,lower,5,0,-1,"2-way"
+l1.writebacks,count,lower,0,0,n/a,tie
+l1.back_invalidations,count,lower,0,0,n/a,tie
+memory.reads,count,lower,6,2,-0.666667,"2-way"
+memory.writes,count,lower,0,0,n/a,tie
+memory.bytes_per_access,bytes,lower,16,5.33333,-0.666667,"2-way"

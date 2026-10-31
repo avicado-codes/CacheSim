@@ -4,7 +4,7 @@ Status labels: **Implemented**, **Partially implemented**, **Planned**, **Deferr
 
 > **Read [ARCHITECTURE.md](ARCHITECTURE.md) first.** It is the top-level source of truth: the product is now a deployed website with the engine compiled to WebAssembly, the cache model gains contract extension 1.1 (inclusion and write policies), and hardware monitoring is **Deferred**. This document keeps the exact v1 rules that ARCHITECTURE.md builds on.
 
-Implementation status (2026-10-29): trace reader (section 7), address mapping (4), cache levels and hierarchy (5), statistics and AMAT (6), event stream (12) and analytics are **Implemented** as library code with tests (`tests/`). The production LRU, FIFO and Random policies (configuration track, PR #4) are **Implemented** with tests. `validate()` (configuration track), the `simulate` CLI options, and the web UI are **Planned**. Monitoring (section 8) is **Deferred**. The contracts in sections 7 and 9-11 are frozen at the end of Milestone 1; after that they change only through the protocol in [CONTRIBUTING.md](../CONTRIBUTING.md#2-shared-interfaces-and-ownership-boundaries).
+Implementation status (2026-10-29): trace reader (section 7), address mapping (4), cache levels and hierarchy (5), statistics and AMAT (6), event stream (12) and analytics are **Implemented** as library code with tests (`tests/`). The production LRU, FIFO and Random policies (configuration track, PR #4) are **Implemented** with tests. The website (`web/`, React + TypeScript on the WebAssembly engine) is **Implemented** with Vitest suites (2026-11-01). `validate()` (configuration track) and the `simulate` CLI options are **Planned**. Monitoring (section 8) is **Deferred**. The contracts in sections 7 and 9-11 are frozen at the end of Milestone 1; after that they change only through the protocol in [CONTRIBUTING.md](../CONTRIBUTING.md#2-shared-interfaces-and-ownership-boundaries).
 
 ## 1. Scope
 
@@ -31,8 +31,8 @@ The component diagram is in the [README](../README.md#architecture). Module boun
 | Live session and batch runner | `include/ccsim/session/`, `src/session/` | Simulation | Implemented |
 | JSON results and events | `include/ccsim/report/`, `src/report/` | Simulation | Implemented |
 | Sweeps and comparison | `include/ccsim/compare/`, `src/compare/` | Simulation | Implemented |
-| WebAssembly C ABI | `include/ccsim/wasm/`, `src/wasm/` | Simulation | Implemented natively; Emscripten build Not tested |
-| Website | `web/` | Frontend | Planned |
+| WebAssembly C ABI | `include/ccsim/wasm/`, `src/wasm/` | Simulation | Implemented; Emscripten build verified on Linux |
+| Website | `web/` | Frontend | Implemented (Vitest suites; Playwright Planned) |
 | Test suites, standard dataset, benchmarks | `tests/` | Simulation | Implemented |
 | Monitor interface, sampler, backends | `include/ccsim/monitor/`, `src/monitor/` | — | Deferred |
 
@@ -452,7 +452,7 @@ Both examples are abbreviated. The simulation values are Demo B's expected resul
 
 ## 12. Visualization architecture
 
-**Engine side Implemented; UI Planned.** The interactive debugger (the live simulation) is now in v1 scope and is the centrepiece of the website. The engine runs in a Web Worker as WebAssembly and streams events to the UI. The decision and its numbers are in [ARCHITECTURE.md section 4](ARCHITECTURE.md#4-the-api-decision-webassembly-in-a-web-worker-not-fastapi), and the playback model is in [section 7](ARCHITECTURE.md#7-stage-3-the-live-simulation). The rule in 12.1 is unchanged and enforced.
+**Engine side and UI Implemented.** The interactive debugger (the live simulation) is now in v1 scope and is the centrepiece of the website. The engine runs in a Web Worker as WebAssembly and streams events to the UI. The decision and its numbers are in [ARCHITECTURE.md section 4](ARCHITECTURE.md#4-the-api-decision-webassembly-in-a-web-worker-not-fastapi), and the playback model is in [section 7](ARCHITECTURE.md#7-stage-3-the-live-simulation). The rule in 12.1 is unchanged and enforced.
 
 ### 12.1 One simulator, not two
 

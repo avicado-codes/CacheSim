@@ -1,6 +1,6 @@
 # Frontend Design
 
-**Planned.** This document specifies the `ccsim` web frontend (`web/`): what it looks like and how it is laid out. **How it talks to the engine is defined in [ARCHITECTURE.md sections 4, 7 and 8](ARCHITECTURE.md#4-the-api-decision-webassembly-in-a-web-worker-not-fastapi)**: the site is deployed publicly, and the C++ engine runs inside the visitor's browser as WebAssembly in a Web Worker. The engine side (events, analytics, comparison, C ABI) is Implemented and tested; the UI is not built yet.
+**Implemented** in `web/` (see [web/README.md](../web/README.md)). This document specifies the `ccsim` web frontend (`web/`): what it looks like and how it is laid out. **How it talks to the engine is defined in [ARCHITECTURE.md sections 4, 7 and 8](ARCHITECTURE.md#4-the-api-decision-webassembly-in-a-web-worker-not-fastapi)**: the site is deployed publicly, and the C++ engine runs inside the visitor's browser as WebAssembly in a Web Worker. The engine side (events, analytics, comparison, C ABI) and the UI are Implemented and tested. Where the shipped UI differs from this brief (for example, L1 is always drawn as the sorting case and L2 as the canvas grid), [ARCHITECTURE.md section 7.3](ARCHITECTURE.md#73-what-the-visualiser-shows-ui-contract) wins.
 
 The four screenshots under [`assets/images/`](../assets/images) are **visual references** for look and feel — layout density, dark theme, component style — taken from existing dashboards and one cache simulator. They are mood boards, not the target product; the content in every view is `ccsim`'s own data. Each view below names the reference it adapts.
 
@@ -144,7 +144,7 @@ flowchart LR
 
 ## 9. Technology and constraints
 
-- **Stack:** React 18 + TypeScript + Vite; state in Zustand; charts in Apache ECharts (canvas rendering for large heatmaps and long series); set/way grids drawn on `<canvas>` (an L2 can have 32,768 cells). Testing: Vitest and Playwright.
+- **Stack:** React 18 + TypeScript + Vite; state in Zustand; charts in Apache ECharts (canvas rendering for large heatmaps and long series); set/way grids drawn on `<canvas>` (an L2 can have 32,768 cells). Testing: Vitest (Playwright end-to-end Planned).
 - **Deployment:** static build on Cloudflare Pages (GitHub Pages as fallback), with `.wasm` served as `application/wasm` and hashed immutable assets (ARCHITECTURE.md section 15).
 - **Charts** follow the `dataviz` method (form → colour → validate → marks → hover → accessibility): a legend whenever there are two or more series, a table view behind every chart, and no second y-axis.
 - **Browsers:** current Chrome, Firefox, Edge and Safari (all support WebAssembly, BigInt, Web Workers and `DecompressionStream`).

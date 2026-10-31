@@ -58,6 +58,16 @@ file(GLOB CCSIM_DATASET_SOURCES CONFIGURE_DEPENDS dataset/*.cpp)
 ccsim_add_suite(ccsim_dataset_tests dataset ${CCSIM_DATASET_SOURCES})
 set_tests_properties(dataset.ccsim_dataset_tests PROPERTIES TIMEOUT 600)
 
+# Engine fixtures for the web frontend (web/test/fixtures/). The unit test fails when the
+# committed fixtures no longer match the engine; regenerate with
+#   ./build/tests/ccsim_web_fixtures --write web/test/fixtures
+add_executable(ccsim_web_fixtures tools/web_fixtures.cpp)
+target_link_libraries(ccsim_web_fixtures PRIVATE ccsim_test_support ccsim_api)
+ccsim_set_warnings(ccsim_web_fixtures)
+add_test(NAME unit.web_fixtures_current
+  COMMAND ccsim_web_fixtures --check ${PROJECT_SOURCE_DIR}/web/test/fixtures)
+set_tests_properties(unit.web_fixtures_current PROPERTIES LABELS unit SKIP_RETURN_CODE 77)
+
 if(CCSIM_BUILD_BENCHMARKS)
   file(GLOB CCSIM_BENCH_SOURCES CONFIGURE_DEPENDS bench/*.cpp)
   ccsim_add_suite(ccsim_bench bench ${CCSIM_BENCH_SOURCES})

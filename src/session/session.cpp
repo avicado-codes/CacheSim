@@ -21,7 +21,13 @@ void Session::reset() {
     c2_.reset();
     if (options_.classify_misses) {
         c1_.emplace(hierarchy_->l1().geometry().capacity_lines());
-        if (const CacheLevel* l2 = hierarchy_->l2()) c2_.emplace(l2->geometry().capacity_lines());
+        // An exclusive L2 holds only L1 victims, never the lines its demand lookups miss on, so
+        // a fully associative shadow fed with those lookups does not model it: its capacity and
+        // conflict split would be invented. No classification is reported (null, "n/a").
+        const CacheLevel* l2 = hierarchy_->l2();
+        if (l2 != nullptr && hierarchy_->config().inclusion != InclusionPolicy::Exclusive) {
+            c2_.emplace(l2->geometry().capacity_lines());
+        }
     }
     timeline_.clear();
     position_ = 0;

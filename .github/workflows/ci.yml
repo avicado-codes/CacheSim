@@ -2,6 +2,7 @@
 #   dataset: the standard benchmark trace is byte-identical to its manifest.
 #   native:  GCC and Clang Release with -Werror, plus GCC Debug under ASan + UBSan.
 #   wasm:    the Emscripten browser module, loaded and checked end to end in Node.
+#   web:     the website (typecheck, Vitest, Vite build) around the module from the wasm job.
 #   bench:   throughput report (nightly and on demand only; timings are noisy on shared runners).
 # Runs on every push and pull request, and nightly on main so project health is reported even
 # when nobody pushes (toolchain or runner-image drift shows up the morning after, not weeks later).
@@ -127,6 +128,44 @@ jobs:
           path: |
             build-wasm/src/wasm/ccsim.mjs
             build-wasm/src/wasm/ccsim.wasm
+          retention-days: 14
+
+  web:
+    # ARCHITECTURE section 15: the site is built around the engine module from the wasm job.
+    # Playwright end to end (the two-level walkthrough in a real browser) is Planned.
+    needs: wasm
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: ccsim-wasm
+          path: build-wasm/src/wasm
+      - name: Install
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit tests
+        # Decoder, config encoding, visualiser highlights and views, checked against the engine
+        # fixtures in web/test/fixtures (kept current by ctest unit.web_fixtures_current).
+        run: npm test
+      - name: Build
+        run: |
+          npm run wasm:copy
+          npm run build
+          test -s dist/engine/ccsim.wasm && test -s dist/engine/ccsim.mjs && test -s dist/_headers
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ccsim-site
+          path: web/dist
           retention-days: 14
 
   bench:

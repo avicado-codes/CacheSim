@@ -52,7 +52,8 @@ struct ComparisonRow {
     std::vector<Rate> values;     // one per run
     std::vector<Rate> delta_abs;  // value - baseline
     std::vector<Rate> delta_rel;  // (value - baseline) / baseline
-    std::optional<std::size_t> best;  // index of the winning run, if any value exists
+    std::optional<std::size_t> best;  // index of the single winning run; nullopt if none or tied
+    bool tie = false;                 // two or more runs share the best value (best is then nullopt)
 };
 
 struct Comparison {

@@ -1,4 +1,4 @@
-// Differential oracle for the engine (QA pass 2026-10-31, QA_REPORT.md).
+// Differential oracle for the engine (QA pass 2026-10-31, docs/QA_REPORT.md).
 //
 // `Model` below is a second, deliberately naive implementation of the cache semantics, written
 // from docs/ARCHITECTURE.md 5.3 (order of operations, rules 1-8) and TECHNICAL_DESIGN 4-5:

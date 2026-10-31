@@ -71,6 +71,7 @@ public:
     const Hierarchy& hierarchy() const noexcept { return *hierarchy_; }
     const SimulationResult& result() const noexcept { return hierarchy_->result(); }
     const std::vector<TimelinePoint>& timeline() const noexcept { return timeline_; }
+    // 3C counts; nullopt when classification is off, and always for an exclusive L2.
     std::optional<MissBreakdown> three_c(LevelId level) const;
     const Trace& trace() const noexcept { return *trace_; }
 

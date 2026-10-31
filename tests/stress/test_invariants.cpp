@@ -66,6 +66,11 @@ TEST_CASE("stress.three_c_partitions_misses") {
         Session s(t, c, kRef);
         s.run_to_end();
         for (LevelId l : {LevelId::L1, LevelId::L2}) {
+            // An exclusive L2 reports no 3C split (session.three_c_not_reported_for_exclusive_l2).
+            if (l == LevelId::L2 && inc == InclusionPolicy::Exclusive) {
+                CHECK(!s.three_c(l).has_value());
+                continue;
+            }
             const MissBreakdown b = *s.three_c(l);
             const LevelStats& st = l == LevelId::L1 ? s.result().l1 : *s.result().l2;
             // L1: write-around misses are demand misses too (classified), so all misses partition.
