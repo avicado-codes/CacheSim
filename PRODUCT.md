@@ -78,7 +78,7 @@ examples in `docs/WORKING_DEMO.md`.
 - Worked examples with hand-derived expected values: Demos A–C in `docs/WORKING_DEMO.md`, traces in
   `tests/data/golden/`.
 - The shared benchmark dataset `tests/data/standard/matmul64-O0.trace.gz` (pinned; never modified).
-- Engine test suites (unit, golden, stress, dataset) and the QA report `QA_REPORT.md`.
+- Engine test suites (unit, golden, stress, dataset) and the QA report `docs/QA_REPORT.md`.
 - Not on hand, and not to be fabricated: users, testimonials, course adoptions, usage numbers, a live
   deployment URL, performance claims beyond the recorded benchmark report.
 

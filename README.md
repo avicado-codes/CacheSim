@@ -4,7 +4,7 @@ A deterministic **L1/L2 cache simulator** written in portable C++17 and delivere
 
 > **Status: v0.1.0, engine phase.** The simulation engine, the production LRU / FIFO / Random replacement policies, live-session API, analytics, comparison, browser C ABI, test suites, the validated standard dataset and the website (React + WebAssembly) are **Implemented** and Linux-verified. `validate()` (configuration track) and the `simulate` CLI command are **Planned**. Hardware monitoring is **Deferred**.
 >
-> **New here? Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).** Contributors and AI agents: read [AGENTS.md](AGENTS.md). Latest QA pass: [QA_REPORT.md](QA_REPORT.md).
+> **New here? Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).** Contributors and AI agents: read [AGENTS.md](AGENTS.md). Latest QA pass: [docs/QA_REPORT.md](docs/QA_REPORT.md).
 
 ## Features
 
@@ -58,11 +58,11 @@ CacheSim/
 ├── README.md                       this file: overview, structure, quick start, status
 ├── AGENTS.md                       [shared] binding rules for AI agents and contributors
 ├── CONTRIBUTING.md                 roles, Git workflow, reviews, Definition of Done
-├── QA_REPORT.md                    repository QA report: latest test completion report
 ├── CMakeLists.txt                  [shared] options; auto-discovers src/<module>/CMakeLists.txt
 ├── .gitattributes  .gitignore      LF line endings; whitelist for tests/results/
 ├── .github/workflows/ci.yml        push/PR + nightly: dataset checksum, GCC/Clang/ASan suites, WASM + Node smoke, bench
 ├── docs/                           ARCHITECTURE [shared] · TECHNICAL_DESIGN · FRONTEND_DESIGN · WORKING_DEMO · DEVELOPMENT · OVERVIEW
+│                                   QA_REPORT (latest test completion report) · FRONTEND_FIXES
 ├── assets/images/                  UI mood-board screenshots
 ├── include/ccsim/                  public headers, one folder per module
 │   ├── sim/                        types.hpp [shared] contract 1.1 (config, stats, enums, policy name table)
@@ -272,7 +272,7 @@ Feature status is in the [Features](#features) table. Roadmap: [ARCHITECTURE.md 
 4. Possible only through ETW PMU sources: elevated, CPU-specific, custom events since Windows 10 1903.
 5. Cache events are exposed only through Instruments' CPU Counters (full Xcode). v1 documents that manual workflow instead of automating it.
 6. `perf_event_open` has no generic L2 event; CPU-specific raw event codes are required.
-7. 2026-10-31, Kali rolling x86-64: GCC 16.2 Release, GCC Debug with ASan + UBSan, Clang 21.1 Release; CMake 4.4 + Ninja; warnings as errors; all suites green ([tests/results/](tests/results/), [QA_REPORT.md](QA_REPORT.md)).
+7. 2026-10-31, Kali rolling x86-64: GCC 16.2 Release, GCC Debug with ASan + UBSan, Clang 21.1 Release; CMake 4.4 + Ninja; warnings as errors; all suites green ([tests/results/](tests/results/), [docs/QA_REPORT.md](docs/QA_REPORT.md)).
 8. 2026-11-01, same machine: Emscripten 4.0.10 `ccsim_wasm` build and `tests/wasm/smoke.mjs`; Node 24 with Vitest, typecheck and Vite build; site checked in headless Chromium. Steps: [Reproduce on Linux](#reproduce-on-linux).
 
 Monitoring rows below are **Deferred** and kept for the record.
@@ -285,7 +285,7 @@ Hardware counters were not validated anywhere yet: the validation VM exposes no 
 |---|---|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Start here.** The whole system: API decision, cache model, live simulation, analytics, comparison, layout, ownership, performance, deployment |
 | [AGENTS.md](AGENTS.md) | Rules for AI agents and contributors |
-| [QA_REPORT.md](QA_REPORT.md) | Latest QA pass: methods, results, defects and fixes, architecture conformance, open risks |
+| [docs/QA_REPORT.md](docs/QA_REPORT.md) | Latest QA pass: methods, results, defects and fixes, architecture conformance, open risks |
 | [tests/data/standard/README.md](tests/data/standard/README.md) | The standard benchmark dataset: manifest, fitness evidence, profiles |
 | [docs/TECHNICAL_DESIGN.md](docs/TECHNICAL_DESIGN.md) | Exact v1 rules: cache model, trace format, statistics, interfaces (monitoring deferred) |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Per-OS prerequisites, build, test, debug, troubleshooting |

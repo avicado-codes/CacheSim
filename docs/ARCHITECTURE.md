@@ -2,7 +2,7 @@
 
 **The top-level source of truth for the project.** Read this first. Where it disagrees with an older document, this one wins, and the older one links back here. Detailed rules live in the documents in [section 18](#18-document-map); this one explains how everything fits together and why.
 
-Status labels follow the repository convention: **Implemented** (merged with tests), **Partially implemented**, **Planned**. Last full revision: 2026-10-29; status labels and QA fixes updated 2026-10-31 ([QA_REPORT.md](../QA_REPORT.md)), deployment hardening 2026-11-01 (sections 6, 8.1, 9.2, 10); the one-off `NOTICE.md` handoff to the configuration track was retired the same day, and its lasting rules live here and in [AGENTS.md](../AGENTS.md).
+Status labels follow the repository convention: **Implemented** (merged with tests), **Partially implemented**, **Planned**. Last full revision: 2026-10-29; status labels and QA fixes updated 2026-10-31 ([QA_REPORT.md](QA_REPORT.md)), deployment hardening 2026-11-01 (sections 6, 8.1, 9.2, 10); the one-off `NOTICE.md` handoff to the configuration track was retired the same day, and its lasting rules live here and in [AGENTS.md](../AGENTS.md).
 
 ---
 
@@ -527,9 +527,9 @@ Every value comes from exact integer counters. A rate with a zero denominator is
 CacheSim/
 ├── AGENTS.md                  operating manual for AI agents and new contributors
 ├── README.md  CONTRIBUTING.md
-├── QA_REPORT.md               repository QA report (test completion report, kept current)
 ├── CMakeLists.txt             root: options + auto-discovers src/*/CMakeLists.txt (rarely edited)
 ├── docs/                      ARCHITECTURE (this) · TECHNICAL_DESIGN · FRONTEND_DESIGN · WORKING_DEMO · DEVELOPMENT · OVERVIEW
+│                              QA_REPORT (test completion report, kept current) · FRONTEND_FIXES
 ├── assets/images/             UI mood-board screenshots
 ├── include/ccsim/             public headers, one folder per module
 │   ├── sim/types.hpp          SHARED CONTRACT (config + stats): append-only
@@ -736,7 +736,7 @@ flowchart LR
 | [OVERVIEW.md](OVERVIEW.md) | a one-page tour | current |
 | [../tests/data/standard/README.md](../tests/data/standard/README.md) | the standard dataset | current |
 | [../AGENTS.md](../AGENTS.md) | agent and contributor rules | current |
-| [../QA_REPORT.md](../QA_REPORT.md) | latest QA pass: methods, results, defects, open risks | current |
+| [QA_REPORT.md](QA_REPORT.md) | latest QA pass: methods, results, defects, open risks | current |
 
 ## 19. Glossary
 

@@ -3,11 +3,11 @@
 Tracking list for reworking the frontend merged from PR #1 (`web/`, merge commit `af28f7b`, 2026-10-31).
 The PR was written against the pre-2026-10-29 docs (offline, no build step, vanilla JS, NDJSON events with
 `decompose` + `levels[]`). The docs then moved to the website + WebAssembly design, so most items below are
-spec drift, not mistakes. The target is [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) sections 4, 7, 8, 10, 15
-and 16, and [docs/FRONTEND_DESIGN.md](docs/FRONTEND_DESIGN.md) section 7.
+spec drift, not mistakes. The target is [docs/ARCHITECTURE.md](ARCHITECTURE.md) sections 4, 7, 8, 10, 15
+and 16, and [docs/FRONTEND_DESIGN.md](FRONTEND_DESIGN.md) section 7.
 
 Line references are to `web/` as merged. Status: **Open**, **In progress**, **Fixed**. The rework is on branch
-`feat/web-rework`; see [web/README.md](web/README.md).
+`feat/web-rework`; see [web/README.md](../web/README.md).
 
 ## How the review was done (2026-10-31)
 
@@ -53,7 +53,7 @@ Line references are to `web/` as merged. Status: **Open**, **In progress**, **Fi
   memory 6 reads / 1 write) match the engine exactly.
 - Sample-data provenance banner (`_is_sample_data`) and "n/a" handling in the analytics tiles.
 - Accessibility: WAI-ARIA tablist with keyboard navigation, a table behind every chart, mobile drawer.
-- Narration copy that follows [docs/WORKING_DEMO.md](docs/WORKING_DEMO.md).
+- Narration copy that follows [docs/WORKING_DEMO.md](WORKING_DEMO.md).
 - The CSS design tokens, view layouts and component styles.
 
 ## Rework plan

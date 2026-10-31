@@ -1,6 +1,6 @@
 # ccsim QA Report
 
-The repository's standing quality-assurance record. It follows the *test completion report* structure of ISO/IEC/IEEE 29119-3. Each QA pass replaces the body and adds a row to the [revision history](#12-revision-history). Status labels follow the repository convention in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): **Implemented**, **Planned**, **Not tested**.
+The repository's standing quality-assurance record. It follows the *test completion report* structure of ISO/IEC/IEEE 29119-3. Each QA pass replaces the body and adds a row to the [revision history](#12-revision-history). Status labels follow the repository convention in [docs/ARCHITECTURE.md](ARCHITECTURE.md): **Implemented**, **Planned**, **Not tested**.
 
 ## 1. Document control
 
@@ -35,10 +35,10 @@ This report records what was tested, how, what was found and fixed, and what ris
 
 | Document | Used for |
 |---|---|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Specification: cache model (5), ABI (8), comparison (10), layering (11), ownership (12), tests (14) |
-| [docs/TECHNICAL_DESIGN.md](docs/TECHNICAL_DESIGN.md) | Exact v1 rules: geometry, trace format, statistics |
-| [docs/WORKING_DEMO.md](docs/WORKING_DEMO.md) | Hand-derived golden expectations and acceptance criteria (AC-1 to AC-10) |
-| [AGENTS.md](AGENTS.md) | Code, test and data rules (4, 5) and the Definition of Done (3) |
+| [docs/ARCHITECTURE.md](ARCHITECTURE.md) | Specification: cache model (5), ABI (8), comparison (10), layering (11), ownership (12), tests (14) |
+| [docs/TECHNICAL_DESIGN.md](TECHNICAL_DESIGN.md) | Exact v1 rules: geometry, trace format, statistics |
+| [docs/WORKING_DEMO.md](WORKING_DEMO.md) | Hand-derived golden expectations and acceptance criteria (AC-1 to AC-10) |
+| [AGENTS.md](../AGENTS.md) | Code, test and data rules (4, 5) and the Definition of Done (3) |
 
 ## 3. Summary and verdict
 

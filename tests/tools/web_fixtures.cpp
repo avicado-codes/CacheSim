@@ -1,7 +1,7 @@
 // tests/tools/web_fixtures.cpp
 //
 // Generates the engine fixtures the web frontend is tested against (web/test/fixtures/), so
-// the UI is built on real engine output rather than hand-written samples (FRONTEND_FIXES.md
+// the UI is built on real engine output rather than hand-written samples (docs/FRONTEND_FIXES.md
 // FE-12, FE-13). Every fixture comes from the same C ABI the browser module exports:
 //
 //   <scenario>.json   config words, the binary event buffer of the whole trace, the same

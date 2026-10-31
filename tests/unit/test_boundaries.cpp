@@ -1,4 +1,4 @@
-// Boundary regressions from the QA pass of 2026-10-31 (QA_REPORT.md). Each test pins one
+// Boundary regressions from the QA pass of 2026-10-31 (docs/QA_REPORT.md). Each test pins one
 // defect that slipped past the existing suites; expected values come from the documents, not
 // from the implementation:
 //   * line 2^64 - 1 (1-byte lines, address 0xFFFF...FFFF) is an ordinary line: TECHNICAL_DESIGN 4
