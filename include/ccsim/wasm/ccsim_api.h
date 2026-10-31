@@ -57,7 +57,9 @@ uint64_t ccsim_trace_size(int32_t trace);
 uint64_t ccsim_trace_fingerprint(int32_t trace);
 void ccsim_trace_release(int32_t trace);
 
-/* Sessions. flags bit 0: disable 3C classification (faster). */
+/* Sessions. flags bit 0: disable 3C classification (faster). Fails if the configuration's
+ * totals on this trace could pass 2^53 (cycles or memory bytes), which JSON cannot carry
+ * exactly into JavaScript. */
 int32_t ccsim_session_create(int32_t trace, const uint64_t* config, uint32_t words, uint32_t flags);
 void ccsim_session_release(int32_t session);
 uint64_t ccsim_session_position(int32_t session);
@@ -79,7 +81,10 @@ uint32_t ccsim_event_buffer_words(void);
 const uint8_t* ccsim_session_slot_states(int32_t session, uint32_t level);
 const uint64_t* ccsim_session_slot_tags(int32_t session, uint32_t level);
 
-/* JSON documents (schemas ccsim.simulation/1 and ccsim.comparison/1). */
+/* JSON documents (schemas ccsim.simulation/1 and ccsim.comparison/1). The reuse profile
+ * (with_reuse != 0) covers the whole trace, so it is included only once the session has run
+ * to the end ("complete": true) and is "reuse": null before that; it is computed once per
+ * trace and line size and reused by every later report. */
 const char* ccsim_session_report_json(int32_t session, const char* label, uint32_t with_reuse);
 const char* ccsim_compare_json(const int32_t* sessions, uint32_t count, const char* const* labels);
 const char* ccsim_compare_csv(const int32_t* sessions, uint32_t count, const char* const* labels);

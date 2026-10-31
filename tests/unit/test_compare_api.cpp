@@ -117,3 +117,96 @@ TEST_CASE("wasm_api.end_to_end") {
     ccsim_session_release(s2);
     api::set_policy_factory(nullptr);
 }
+
+TEST_CASE("compare.ties_name_no_winner") {
+    // Demo A: direct-mapped vs 2-way on the conflict trace. Both have 2 compulsory misses
+    // (WORKING_DEMO.md section 2), so that row is a tie; AMAT has a unique winner (2-way).
+    const auto t = load_trace_file(data_dir() + "/golden/demo_a_conflict.trace");
+    std::vector<RunReport> runs;
+    for (std::uint32_t ways : {1u, 2u}) {
+        RunOptions o;
+        o.label = ways == 1 ? "direct" : "2-way";
+        runs.push_back(run_batch(t, l1_only(64, 16, ways, PolicyKind::Lru, 1, 100), kRef, o));
+    }
+    const Comparison c = compare_runs(runs);
+    const ComparisonRow* compulsory = nullptr;
+    const ComparisonRow* amat = nullptr;
+    for (const auto& r : c.rows) {
+        if (r.key == "l1.compulsory") compulsory = &r;
+        if (r.key == "amat_cycles") amat = &r;
+    }
+    CHECK(compulsory != nullptr && amat != nullptr);
+    if (compulsory != nullptr && amat != nullptr) {
+        CHECK_EQ(*compulsory->values[0], 2.0);
+        CHECK_EQ(*compulsory->values[1], 2.0);
+        CHECK(compulsory->tie);
+        CHECK(!compulsory->best.has_value());
+        CHECK(!amat->tie);
+        CHECK(amat->best && *amat->best == 1);
+    }
+    const std::string csv = comparison_csv(c);
+    CHECK(csv.find("\nl1.compulsory,count,lower,2,2,0,tie\n") != std::string::npos);
+    CHECK(comparison_log(c).find("L1 compulsory misses [count]:  direct=2  2-way=2 (+0.00%)  -> tie\n") !=
+          std::string::npos);
+    JsonWriter w;
+    write_comparison(w, c);
+    const std::string json = w.take();
+    CHECK(json.find("\"key\":\"l1.compulsory\"") != std::string::npos);
+    CHECK(json.find("\"best\":null,\"tie\":true") != std::string::npos);
+    CHECK(json.find("\"best\":1,\"tie\":false") != std::string::npos);
+}
+
+TEST_CASE("wasm_api.reuse_only_in_complete_reports") {
+    api::set_policy_factory(kRef);
+    const std::int32_t trace = ccsim_trace_begin("r.trace", 0);
+    const char* text = "R 0x000\nR 0x040\nR 0x000\nR 0x080\n";
+    CHECK_EQ(ccsim_trace_feed(trace, text, static_cast<std::uint32_t>(std::strlen(text))), 0);
+    CHECK_EQ(ccsim_trace_end(trace), 0);
+    std::uint64_t cfg[CCSIM_CONFIG_WORDS] = {1, 1024, 64, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 100, 0, 1};
+    const std::int32_t s = ccsim_session_create(trace, cfg, CCSIM_CONFIG_WORDS, 0);
+    CHECK(s > 0);
+    CHECK_EQ(ccsim_session_step(s, 2, 0), 2);
+    const std::string mid = ccsim_session_report_json(s, "mid", 1);
+    CHECK(mid.find("\"complete\":false") != std::string::npos);
+    CHECK(mid.find("\"reuse\":null") != std::string::npos);  // whole-trace data next to partial counters: no
+
+    CHECK_EQ(ccsim_session_step(s, 10, 0), 2);
+    const std::string end1 = ccsim_session_report_json(s, "end", 1);
+    CHECK(end1.find("\"complete\":true") != std::string::npos);
+    // 4 accesses, 3 distinct lines (cold), one reuse at distance 1 (bucket 1).
+    CHECK(end1.find("\"reuse\":{\"line_bytes\":64,\"cold\":3,\"footprint_bytes\":192,\"histogram\":[0,1]") !=
+          std::string::npos);
+    // A second session on the same trace gets the same profile (served from the cache).
+    const std::int32_t s2 = ccsim_session_create(trace, cfg, CCSIM_CONFIG_WORDS, 1);
+    CHECK_EQ(ccsim_session_step(s2, 10, 0), 4);
+    const std::string end2 = ccsim_session_report_json(s2, "end", 1);
+    CHECK_EQ(end2.substr(end2.find("\"reuse\":")), end1.substr(end1.find("\"reuse\":")));
+    // Seeking back makes the report partial again.
+    CHECK_EQ(ccsim_session_seek(s, 1), 0);
+    CHECK(std::string(ccsim_session_report_json(s, "back", 1)).find("\"reuse\":null") != std::string::npos);
+
+    ccsim_session_release(s);
+    ccsim_session_release(s2);
+    ccsim_trace_release(trace);
+    api::set_policy_factory(nullptr);
+}
+
+TEST_CASE("wasm_api.totals_must_stay_exact_in_javascript") {
+    HierarchyConfig c = default_hierarchy();  // 4 + 12 + 200 = 216 cycles worst case
+    constexpr std::uint64_t kSafe = (std::uint64_t{1} << 53) - 1;
+    api::check_js_safe_totals(c, 50'000'000);  // the website's upload limit: fine
+    c.l1.line_bytes = 16;                       // small lines, so the cycle total is the binding limit
+    c.l2->line_bytes = 16;
+    api::check_js_safe_totals(c, kSafe / 216);
+    CHECK_THROWS_AS(api::check_js_safe_totals(c, kSafe / 216 + 1), ConfigError);
+
+    c.memory_latency_cycles = 0xFFFF0000U;  // ~2^32 cycles per access
+    api::check_js_safe_totals(c, 1'000'000);
+    CHECK_THROWS_AS(api::check_js_safe_totals(c, 4'000'000), ConfigError);
+
+    HierarchyConfig big_lines = default_hierarchy();
+    big_lines.l1.line_bytes = 1U << 30;
+    big_lines.l2->line_bytes = 1U << 30;
+    api::check_js_safe_totals(big_lines, 1U << 20);                        // 4 * 2^20 * 2^30 = 2^52 bytes
+    CHECK_THROWS_AS(api::check_js_safe_totals(big_lines, 1U << 21), ConfigError);  // 2^53: one too many
+}

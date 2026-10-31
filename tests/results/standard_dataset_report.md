@@ -57,18 +57,18 @@ metrics:
   L1 read miss rate [ratio]:  L1 1-way=0.0125743  L1 2-way=0.00519598 (-58.68%)  L1 4-way=0.00771135 (-38.67%)  L1 8-way=0.0133967 (+6.54%)  L1 16-way=0.0238236 (+89.46%)  -> best: L1 2-way
   L1 write miss rate [ratio]:  L1 1-way=0.0812356  L1 2-way=0.00473544 (-94.17%)  L1 4-way=0.00256086 (-96.85%)  L1 8-way=0.00256801 (-96.84%)  L1 16-way=0.00256622 (-96.84%)  -> best: L1 4-way
   L1 misses / 1000 accesses [count]:  L1 1-way=22.0514  L1 2-way=5.13241 (-76.73%)  L1 4-way=7.00045 (-68.25%)  L1 8-way=11.9021 (-46.03%)  L1 16-way=20.8895 (-5.27%)  -> best: L1 2-way
-  L1 compulsory misses [count]:  L1 1-way=2934  L1 2-way=2934 (+0.00%)  L1 4-way=2934 (+0.00%)  L1 8-way=2934 (+0.00%)  L1 16-way=2934 (+0.00%)  -> best: L1 1-way
+  L1 compulsory misses [count]:  L1 1-way=2934  L1 2-way=2934 (+0.00%)  L1 4-way=2934 (+0.00%)  L1 8-way=2934 (+0.00%)  L1 16-way=2934 (+0.00%)  -> tie
   L1 capacity misses [count]:  L1 1-way=1874  L1 2-way=3206 (+71.08%)  L1 4-way=5419 (+189.17%)  L1 8-way=9634 (+414.09%)  L1 16-way=17827 (+851.28%)  -> best: L1 1-way
   L1 conflict misses [count]:  L1 1-way=84529  L1 2-way=14653 (-82.67%)  L1 4-way=20008 (-76.33%)  L1 8-way=35651 (-57.82%)  L1 16-way=63869 (-24.44%)  -> best: L1 2-way
   L1 evictions [count]:  L1 1-way=88825  L1 2-way=20281 (-77.17%)  L1 4-way=27849 (-68.65%)  L1 8-way=47707 (-46.29%)  L1 16-way=84118 (-5.30%)  -> best: L1 2-way
   L1 write-backs [count]:  L1 1-way=47610  L1 2-way=3397 (-92.86%)  L1 4-way=2170 (-95.44%)  L1 8-way=2175 (-95.43%)  L1 16-way=2172 (-95.44%)  -> best: L1 4-way
-  L1 back-invalidations [count]:  L1 1-way=0  L1 2-way=0  L1 4-way=0  L1 8-way=0  L1 16-way=0  -> best: L1 1-way
+  L1 back-invalidations [count]:  L1 1-way=0  L1 2-way=0  L1 4-way=0  L1 8-way=0  L1 16-way=0  -> tie
   L2 local miss rate [ratio]:  L1 1-way=0.0328419  L1 2-way=0.141105 (+329.65%)  L1 4-way=0.103452 (+215.00%)  L1 8-way=0.0608474 (+85.27%)  L1 16-way=0.0346686 (+5.56%)  -> best: L1 1-way
-  L2 global miss rate [ratio]:  L1 1-way=0.00072421  L1 2-way=0.00072421 (+0.00%)  L1 4-way=0.00072421 (+0.00%)  L1 8-way=0.00072421 (+0.00%)  L1 16-way=0.00072421 (+0.00%)  -> best: L1 1-way
-  L2 conflict misses [count]:  L1 1-way=0  L1 2-way=0  L1 4-way=0  L1 8-way=0  L1 16-way=0  -> best: L1 1-way
-  Memory reads [count]:  L1 1-way=2934  L1 2-way=2934 (+0.00%)  L1 4-way=2934 (+0.00%)  L1 8-way=2934 (+0.00%)  L1 16-way=2934 (+0.00%)  -> best: L1 1-way
-  Memory writes [count]:  L1 1-way=0  L1 2-way=0  L1 4-way=0  L1 8-way=0  L1 16-way=0  -> best: L1 1-way
-  Memory traffic / access [bytes]:  L1 1-way=0.0463494  L1 2-way=0.0463494 (+0.00%)  L1 4-way=0.0463494 (+0.00%)  L1 8-way=0.0463494 (+0.00%)  L1 16-way=0.0463494 (+0.00%)  -> best: L1 1-way
+  L2 global miss rate [ratio]:  L1 1-way=0.00072421  L1 2-way=0.00072421 (+0.00%)  L1 4-way=0.00072421 (+0.00%)  L1 8-way=0.00072421 (+0.00%)  L1 16-way=0.00072421 (+0.00%)  -> tie
+  L2 conflict misses [count]:  L1 1-way=0  L1 2-way=0  L1 4-way=0  L1 8-way=0  L1 16-way=0  -> tie
+  Memory reads [count]:  L1 1-way=2934  L1 2-way=2934 (+0.00%)  L1 4-way=2934 (+0.00%)  L1 8-way=2934 (+0.00%)  L1 16-way=2934 (+0.00%)  -> tie
+  Memory writes [count]:  L1 1-way=0  L1 2-way=0  L1 4-way=0  L1 8-way=0  L1 16-way=0  -> tie
+  Memory traffic / access [bytes]:  L1 1-way=0.0463494  L1 2-way=0.0463494 (+0.00%)  L1 4-way=0.0463494 (+0.00%)  L1 8-way=0.0463494 (+0.00%)  L1 16-way=0.0463494 (+0.00%)  -> tie
 ```
 
 ## Policy sweep (8 KiB L1)
@@ -90,18 +90,18 @@ metrics:
   L1 read miss rate [ratio]:  8K L1 lru=0.0771278  8K L1 fifo=0.0778964 (+1.00%)  8K L1 random=0.0776275 (+0.65%)  -> best: 8K L1 lru
   L1 write miss rate [ratio]:  8K L1 lru=0.00266994  8K L1 fifo=0.0328101 (+1128.87%)  8K L1 random=0.0338026 (+1166.04%)  -> best: 8K L1 lru
   L1 misses / 1000 accesses [count]:  8K L1 lru=66.8507  8K L1 fifo=71.6733 (+7.21%)  8K L1 random=71.5785 (+7.07%)  -> best: 8K L1 lru
-  L1 compulsory misses [count]:  8K L1 lru=2934  8K L1 fifo=2934 (+0.00%)  8K L1 random=2934 (+0.00%)  -> best: 8K L1 lru
+  L1 compulsory misses [count]:  8K L1 lru=2934  8K L1 fifo=2934 (+0.00%)  8K L1 random=2934 (+0.00%)  -> tie
   L1 capacity misses [count]:  8K L1 lru=34089  8K L1 fifo=34091 (+0.01%)  8K L1 random=33746 (-1.01%)  -> best: 8K L1 random
   L1 conflict misses [count]:  8K L1 lru=233810  8K L1 fifo=253346 (+8.36%)  8K L1 random=253307 (+8.34%)  -> best: 8K L1 lru
   L1 evictions [count]:  8K L1 lru=270705  8K L1 fifo=290243 (+7.22%)  8K L1 random=289859 (+7.08%)  -> best: 8K L1 lru
   L1 write-backs [count]:  8K L1 lru=2298  8K L1 fifo=21474 (+834.46%)  8K L1 random=22019 (+858.18%)  -> best: 8K L1 lru
-  L1 back-invalidations [count]:  8K L1 lru=0  8K L1 fifo=0  8K L1 random=0  -> best: 8K L1 lru
+  L1 back-invalidations [count]:  8K L1 lru=0  8K L1 fifo=0  8K L1 random=0  -> tie
   L2 local miss rate [ratio]:  8K L1 lru=0.0108332  8K L1 fifo=0.0101043 (-6.73%)  8K L1 random=0.0101177 (-6.61%)  -> best: 8K L1 fifo
-  L2 global miss rate [ratio]:  8K L1 lru=0.00072421  8K L1 fifo=0.00072421 (+0.00%)  8K L1 random=0.00072421 (+0.00%)  -> best: 8K L1 lru
-  L2 conflict misses [count]:  8K L1 lru=0  8K L1 fifo=0  8K L1 random=0  -> best: 8K L1 lru
-  Memory reads [count]:  8K L1 lru=2934  8K L1 fifo=2934 (+0.00%)  8K L1 random=2934 (+0.00%)  -> best: 8K L1 lru
-  Memory writes [count]:  8K L1 lru=0  8K L1 fifo=0  8K L1 random=0  -> best: 8K L1 lru
-  Memory traffic / access [bytes]:  8K L1 lru=0.0463494  8K L1 fifo=0.0463494 (+0.00%)  8K L1 random=0.0463494 (+0.00%)  -> best: 8K L1 lru
+  L2 global miss rate [ratio]:  8K L1 lru=0.00072421  8K L1 fifo=0.00072421 (+0.00%)  8K L1 random=0.00072421 (+0.00%)  -> tie
+  L2 conflict misses [count]:  8K L1 lru=0  8K L1 fifo=0  8K L1 random=0  -> tie
+  Memory reads [count]:  8K L1 lru=2934  8K L1 fifo=2934 (+0.00%)  8K L1 random=2934 (+0.00%)  -> tie
+  Memory writes [count]:  8K L1 lru=0  8K L1 fifo=0  8K L1 random=0  -> tie
+  Memory traffic / access [bytes]:  8K L1 lru=0.0463494  8K L1 fifo=0.0463494 (+0.00%)  8K L1 random=0.0463494 (+0.00%)  -> tie
 ```
 
 ## Inclusion sweep (8 KiB L1, 64 KiB L2)
@@ -119,19 +119,19 @@ metrics:
   AMAT [cycles]:  non_inclusive=4.97677  inclusive=4.97703 (+0.01%)  exclusive=4.97465 (-0.04%)  -> best: exclusive
   Speed-up vs. no cache [x]:  non_inclusive=40.1867  inclusive=40.1846 (-0.01%)  exclusive=40.2039 (+0.04%)  -> best: exclusive
   Total latency [cycles]:  non_inclusive=2.01624e+07  inclusive=2.01635e+07 (+0.01%)  exclusive=2.01538e+07 (-0.04%)  -> best: exclusive
-  L1 miss rate [ratio]:  non_inclusive=0.0668507  inclusive=0.0668517 (+0.00%)  exclusive=0.0668507 (+0.00%)  -> best: non_inclusive
-  L1 read miss rate [ratio]:  non_inclusive=0.0771278  inclusive=0.077129 (+0.00%)  exclusive=0.0771278 (+0.00%)  -> best: non_inclusive
-  L1 write miss rate [ratio]:  non_inclusive=0.00266994  inclusive=0.00266994 (+0.00%)  exclusive=0.00266994 (+0.00%)  -> best: non_inclusive
-  L1 misses / 1000 accesses [count]:  non_inclusive=66.8507  inclusive=66.8517 (+0.00%)  exclusive=66.8507 (+0.00%)  -> best: non_inclusive
-  L1 compulsory misses [count]:  non_inclusive=2934  inclusive=2934 (+0.00%)  exclusive=2934 (+0.00%)  -> best: non_inclusive
-  L1 capacity misses [count]:  non_inclusive=34089  inclusive=34089 (+0.00%)  exclusive=34089 (+0.00%)  -> best: non_inclusive
-  L1 conflict misses [count]:  non_inclusive=233810  inclusive=233814 (+0.00%)  exclusive=233810 (+0.00%)  -> best: non_inclusive
+  L1 miss rate [ratio]:  non_inclusive=0.0668507  inclusive=0.0668517 (+0.00%)  exclusive=0.0668507 (+0.00%)  -> tie
+  L1 read miss rate [ratio]:  non_inclusive=0.0771278  inclusive=0.077129 (+0.00%)  exclusive=0.0771278 (+0.00%)  -> tie
+  L1 write miss rate [ratio]:  non_inclusive=0.00266994  inclusive=0.00266994 (+0.00%)  exclusive=0.00266994 (+0.00%)  -> tie
+  L1 misses / 1000 accesses [count]:  non_inclusive=66.8507  inclusive=66.8517 (+0.00%)  exclusive=66.8507 (+0.00%)  -> tie
+  L1 compulsory misses [count]:  non_inclusive=2934  inclusive=2934 (+0.00%)  exclusive=2934 (+0.00%)  -> tie
+  L1 capacity misses [count]:  non_inclusive=34089  inclusive=34089 (+0.00%)  exclusive=34089 (+0.00%)  -> tie
+  L1 conflict misses [count]:  non_inclusive=233810  inclusive=233814 (+0.00%)  exclusive=233810 (+0.00%)  -> tie
   L1 evictions [count]:  non_inclusive=270705  inclusive=270703 (-0.00%)  exclusive=270705 (+0.00%)  -> best: inclusive
   L1 write-backs [count]:  non_inclusive=2298  inclusive=2297 (-0.04%)  exclusive=265951 (+11473.15%)  -> best: inclusive
-  L1 back-invalidations [count]:  non_inclusive=0  inclusive=6  exclusive=0  -> best: non_inclusive
+  L1 back-invalidations [count]:  non_inclusive=0  inclusive=6  exclusive=0  -> tie
   L2 local miss rate [ratio]:  non_inclusive=0.013056  inclusive=0.0130743 (+0.14%)  exclusive=0.0128972 (-1.22%)  -> best: exclusive
   L2 global miss rate [ratio]:  non_inclusive=0.000872804  inclusive=0.000874038 (+0.14%)  exclusive=0.00086219 (-1.22%)  -> best: exclusive
-  L2 conflict misses [count]:  non_inclusive=18  inclusive=21 (+16.67%)  exclusive=11 (-38.89%)  -> best: exclusive
+  L2 conflict misses [count]:  non_inclusive=18  inclusive=21 (+16.67%)  exclusive=n/a  -> best: non_inclusive
   Memory reads [count]:  non_inclusive=3536  inclusive=3541 (+0.14%)  exclusive=3493 (-1.22%)  -> best: exclusive
   Memory writes [count]:  non_inclusive=1444  inclusive=1446 (+0.14%)  exclusive=1407 (-2.56%)  -> best: exclusive
   Memory traffic / access [bytes]:  non_inclusive=0.0786708  inclusive=0.0787814 (+0.14%)  exclusive=0.077407 (-1.61%)  -> best: exclusive

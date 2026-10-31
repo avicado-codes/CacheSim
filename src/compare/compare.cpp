@@ -203,6 +203,16 @@ Comparison compare_runs(const std::vector<RunReport>& runs) {
                 row.best = i;
             }
         }
+        // Equal best values name no winner: exports must not crown the baseline by position.
+        if (row.best && d.better != Better::Neither) {
+            const double top = *row.values[*row.best];
+            std::size_t sharing = 0;
+            for (const Rate& v : row.values) sharing += v && *v == top ? 1 : 0;
+            if (sharing > 1) {
+                row.tie = true;
+                row.best.reset();
+            }
+        }
         c.rows.push_back(std::move(row));
     }
     return c;
@@ -217,7 +227,7 @@ std::string comparison_csv(const Comparison& c) {
         s += r.key + ',' + r.unit + ',' + (r.better == Better::Lower ? "lower" : r.better == Better::Higher ? "higher" : "n/a");
         for (const Rate& v : r.values) s += ',' + fmt(v);
         for (std::size_t i = 1; i < r.delta_rel.size(); ++i) s += ',' + fmt(r.delta_rel[i]);
-        s += ',' + (r.best ? csv_quote(c.labels[*r.best]) : std::string("n/a")) + '\n';
+        s += ',' + (r.best ? csv_quote(c.labels[*r.best]) : std::string(r.tie ? "tie" : "n/a")) + '\n';
     }
     return s;
 }
@@ -243,6 +253,7 @@ std::string comparison_log(const Comparison& c) {
             }
         }
         if (r.best) s += "  -> best: " + c.labels[*r.best];
+        else if (r.tie) s += "  -> tie";
         s += '\n';
     }
     return s;
@@ -275,6 +286,7 @@ void write_comparison(JsonWriter& w, const Comparison& c) {
         w.end_array();
         w.key("best");
         if (r.best) w.value(static_cast<std::uint64_t>(*r.best)); else w.null();
+        w.field("tie", r.tie);
         w.end_object();
     }
     w.end_array();

@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -37,6 +38,12 @@ struct State {
     std::vector<std::unique_ptr<TraceUpload>> traces;  // handle = index + 1
     std::vector<std::unique_ptr<Session>> sessions;
     std::vector<std::string> session_sources;
+    std::vector<std::weak_ptr<const Trace>> session_traces;  // per session, for the reuse cache
+    // Last reuse profile computed. It depends only on the trace and the line size, so every
+    // session on that trace shares it; a weak_ptr never matches a freed (or reallocated) trace.
+    std::weak_ptr<const Trace> reuse_trace;
+    std::uint32_t reuse_line_bytes = 0;
+    std::optional<ReuseProfile> reuse;
     std::vector<std::uint32_t> events;
     std::vector<AccessEvent> scratch;  // reused by step(record) so a frame does not allocate
     std::string error;
@@ -126,6 +133,20 @@ CacheConfig decode_level(const std::uint64_t* w, const char* name) {
     return c;
 }
 
+// Reuse profile of a session's whole trace, computed once per (trace, line size).
+// The session keeps its trace alive, so the weak_ptr taken at creation always locks here.
+const ReuseProfile& cached_reuse(std::int32_t session, std::uint32_t line_bytes) {
+    State& st = state();
+    std::shared_ptr<const Trace> t = st.session_traces[static_cast<std::size_t>(session) - 1].lock();
+    if (!t) throw std::logic_error("session trace is gone");
+    if (!st.reuse || st.reuse_line_bytes != line_bytes || st.reuse_trace.lock() != t) {
+        st.reuse = reuse_profile(*t, line_bytes);
+        st.reuse_trace = t;
+        st.reuse_line_bytes = line_bytes;
+    }
+    return *st.reuse;
+}
+
 std::vector<RunReport> reports_for(const std::int32_t* sessions, std::uint32_t count, const char* const* labels) {
     std::vector<RunReport> runs;
     for (std::uint32_t i = 0; i < count; ++i) {
@@ -141,6 +162,26 @@ std::vector<RunReport> reports_for(const std::int32_t* sessions, std::uint32_t c
 namespace ccsim::api {
 
 void set_policy_factory(PolicyFactory factory) noexcept { state().factory = factory; }
+
+void check_js_safe_totals(const HierarchyConfig& c, std::uint64_t accesses) {
+    constexpr std::uint64_t kJsSafe = (std::uint64_t{1} << 53) - 1;
+    // Per access: at most one memory read and three memory writes (a write-back or dirty
+    // victim, a dirty L2 eviction, a forwarded store), each a whole line.
+    constexpr std::uint64_t kMaxLineTransfers = 4;
+    if (accesses == 0) return;
+    std::uint64_t worst = std::uint64_t{c.l1.hit_latency_cycles} + c.memory_latency_cycles;
+    if (c.l2) worst += c.l2->hit_latency_cycles;
+    if (worst > kJsSafe / accesses) {
+        throw ConfigError("latency: " + std::to_string(accesses) + " accesses at up to " + std::to_string(worst) +
+                          " cycles each could total more than 2^53 cycles, which JavaScript cannot "
+                          "represent exactly; lower the latencies");
+    }
+    if (c.l1.line_bytes > kJsSafe / (kMaxLineTransfers * accesses)) {
+        throw ConfigError("line: " + std::to_string(accesses) + " accesses with " + std::to_string(c.l1.line_bytes) +
+                          "-byte lines could move more than 2^53 bytes to and from memory, which JavaScript "
+                          "cannot represent exactly; use a smaller line");
+    }
+}
 
 HierarchyConfig decode_config(const std::uint64_t* w, std::uint32_t count) {
     if (w == nullptr || count < CCSIM_CONFIG_WORDS) throw ConfigError("config: expected 19 words");
@@ -212,10 +253,16 @@ int32_t ccsim_session_create(int32_t trace, const uint64_t* config, uint32_t wor
         }
         SessionOptions opt;
         opt.classify_misses = (flags & 1U) == 0;
-        auto s = std::make_unique<Session>(t->trace, api::decode_config(config, words), state().factory, opt);
+        const HierarchyConfig cfg = api::decode_config(config, words);
+        Hierarchy::check(cfg);  // the engine's own message first, then the browser's limit
+        api::check_js_safe_totals(cfg, t->trace->size());
+        auto s = std::make_unique<Session>(t->trace, cfg, state().factory, opt);
         const std::int32_t h = store(state().sessions, std::move(s));
-        if (state().session_sources.size() < static_cast<std::size_t>(h)) state().session_sources.resize(static_cast<std::size_t>(h));
-        state().session_sources[static_cast<std::size_t>(h) - 1] = t->source;
+        const auto n = static_cast<std::size_t>(h);
+        if (state().session_sources.size() < n) state().session_sources.resize(n);
+        if (state().session_traces.size() < n) state().session_traces.resize(n);
+        state().session_sources[n - 1] = t->source;
+        state().session_traces[n - 1] = t->trace;
         return h;
     });
 }
@@ -304,7 +351,9 @@ const char* ccsim_session_report_json(int32_t session, const char* label, uint32
     return guarded<const char*>(nullptr, [&] {
         Session* s = lookup(state().sessions, session);
         RunReport r = s->report(label ? label : "run", state().session_sources[static_cast<std::size_t>(session) - 1]);
-        if (with_reuse != 0) r.reuse = reuse_profile(s->trace(), r.config.l1.line_bytes);
+        // The reuse profile describes the whole trace, so it belongs only in a complete report:
+        // next to mid-run counters it would describe accesses that have not executed yet.
+        if (with_reuse != 0 && r.complete) r.reuse = cached_reuse(session, r.config.l1.line_bytes);
         state().text = report_to_json(r, CCSIM_VERSION);
         return state().text.c_str();
     });
