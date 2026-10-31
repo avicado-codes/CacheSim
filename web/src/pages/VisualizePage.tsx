@@ -7,7 +7,6 @@ import walkthroughJson from '../../test/fixtures/demo_b.json';
 import { Icon } from '../components/Icon';
 import { Office } from '../components/Replay';
 import { slotState } from '../components/GridCanvas';
-import { MAX_CUBBIES } from '../components/SortingCase';
 import { Locked } from '../components/TopBar';
 import type { BreakOn } from '../engine/abi';
 import { DEMO_CONFIGS, geometry, sameConfig } from '../engine/config';
@@ -122,15 +121,15 @@ export function VisualizePage() {
     return <Locked what="The visualizer" hint="Configure a cache and choose a trace, then press Run simulation." action="Configure a run" to="simulate" />;
   }
 
-  const g1 = geometry(run.config.l1);
   const g2 = run.config.l2 ? geometry(run.config.l2) : null;
   const isWalkthrough = run.trace.fingerprint === WALKTHROUGH_FINGERPRINT && sameConfig(run.config, DEMO_CONFIGS.demo_b);
   const note = current && isWalkthrough ? WALKTHROUGH_NOTES[current.seq + 1] : undefined;
   const story = current ? narrate(current, run.config) : null;
+  // L2 is drawn on canvas, so the set being accessed is also listed as a table (L1's cubbies are
+  // ordinary elements and already say what they hold).
   const bigCases = [
-    { name: 'L1', g: g1, grid: grids.l1, set: current ? current.l1.set : null },
     { name: 'L2', g: g2, grid: grids.l2, set: current && current.l2.outcome !== 'none' ? current.l2.set : null },
-  ].filter((x) => x.g && x.grid && x.g.sets * x.g.ways > MAX_CUBBIES && x.set !== null);
+  ].filter((x) => x.g && x.grid && x.set !== null);
   const pct = total ? (100 * (scrub ?? position)) / total : 0;
 
   return (

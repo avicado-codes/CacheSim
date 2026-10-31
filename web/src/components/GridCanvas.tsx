@@ -1,5 +1,5 @@
-// Set × way grid on <canvas> for caches too large for the sorting case (an L2 can have tens of
-// thousands of cells). The contents come only from the engine's slot snapshot (session.grid);
+// Set × way grid on <canvas>: how L2 is drawn on every page, at any size (an L2 can have tens
+// of thousands of cells). The contents come only from the engine's slot snapshot (session.grid);
 // highlights mark the slots the current event's actions touched. Colours are read from the
 // theme's CSS custom properties, and state is also given in words by the tooltip.
 //
@@ -80,6 +80,7 @@ export function GridCanvas({ level, grid, sets, ways, highlights, activeSet }: P
   const [hover, setHover] = useState<string>('');
 
   const layout = useMemo(() => gridLayout(sets), [sets]);
+  const resident = useMemo(() => grid.states.reduce((n, b) => n + (b & SLOT_VALID ? 1 : 0), 0), [grid]);
   const { rowH, setsPerRow, rows, labelW } = layout;
   const canvasH = Math.min(layout.height, viewH);
   const cellW = Math.max(1, (width - labelW) / ways);
@@ -208,7 +209,8 @@ export function GridCanvas({ level, grid, sets, ways, highlights, activeSet }: P
         <div className="grid-track" style={{ height: layout.height }}>
           <canvas ref={canvas} className="grid-canvas" style={{ width, height: canvasH }} onMouseMove={onMove}
                   onMouseLeave={() => setHover('')} title={hover} role="img"
-                  aria-label={`${level}: ${sets} sets × ${ways} ways. The current set is listed in the table below.`} />
+                  aria-label={`${level}: ${sets} sets × ${ways} ways, ${resident} of ${sets * ways} slots holding a line${
+                    activeSet !== null ? `; set ${activeSet} is being accessed` : ''}. Hover a slot for its state and tag.`} />
         </div>
       </div>
       <p className="grid-caption" aria-live="polite">
