@@ -5,7 +5,7 @@
 #include <functional>
 #include <stdexcept>
 
-#include "ccsim/sim/geometry.hpp"
+#include "ccsim/sim/hierarchy.hpp"
 
 namespace ccsim {
 namespace {
@@ -47,6 +47,16 @@ void apply(HierarchyConfig& c, SweepField f, std::uint64_t v) {
         case SweepField::MemoryLatency: c.memory_latency_cycles = as_u32(v, "memory latency"); break;
         case SweepField::Seed: c.seed = v; break;
     }
+}
+
+// RFC 4180 field: wrapped in quotes, embedded quotes doubled. Labels are user text.
+std::string csv_quote(const std::string& v) {
+    std::string out = "\"";
+    for (const char ch : v) {
+        if (ch == '"') out += '"';
+        out += ch;
+    }
+    return out + '"';
 }
 
 std::string fmt(const Rate& r) {
@@ -133,8 +143,7 @@ SweepResult expand_sweep(const HierarchyConfig& base, const std::vector<SweepAxi
         HierarchyConfig c = base;
         for (std::size_t a = 0; a < axes.size(); ++a) apply(c, axes[a].field, axes[a].values[idx[a]]);
         try {
-            (void)Geometry::from(c.l1);
-            if (c.l2) (void)Geometry::from(*c.l2);
+            Hierarchy::check(c);  // everything a run would refuse, so no accepted config fails later
             out.configs.push_back(c);
         } catch (const ConfigError& e) {
             out.rejected.push_back(describe(c) + ": " + e.what());
@@ -201,14 +210,14 @@ Comparison compare_runs(const std::vector<RunReport>& runs) {
 
 std::string comparison_csv(const Comparison& c) {
     std::string s = "metric,unit,better";
-    for (const auto& l : c.labels) s += ",\"" + l + "\"";
-    for (std::size_t i = 1; i < c.labels.size(); ++i) s += ",\"delta_rel " + c.labels[i] + "\"";
+    for (const auto& l : c.labels) s += ',' + csv_quote(l);
+    for (std::size_t i = 1; i < c.labels.size(); ++i) s += ',' + csv_quote("delta_rel " + c.labels[i]);
     s += ",best\n";
     for (const ComparisonRow& r : c.rows) {
         s += r.key + ',' + r.unit + ',' + (r.better == Better::Lower ? "lower" : r.better == Better::Higher ? "higher" : "n/a");
         for (const Rate& v : r.values) s += ',' + fmt(v);
         for (std::size_t i = 1; i < r.delta_rel.size(); ++i) s += ',' + fmt(r.delta_rel[i]);
-        s += ',' + (r.best ? "\"" + c.labels[*r.best] + "\"" : std::string("n/a")) + '\n';
+        s += ',' + (r.best ? csv_quote(c.labels[*r.best]) : std::string("n/a")) + '\n';
     }
     return s;
 }

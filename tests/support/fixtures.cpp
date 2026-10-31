@@ -183,9 +183,8 @@ void check_invariants(const SimulationResult& r, const HierarchyConfig& c, const
             break;
         case InclusionPolicy::Inclusive:
             fail_if(b.victims_received != 0, "inclusive: no victim inserts");
-            if (c.l2->write_policy == WritePolicy::WriteBack) {
-                fail_if(b.writeback_misses != 0, "inclusive: L1 write-backs always hit L2");
-            }
+            // ARCHITECTURE 5.4, unconditional: inclusion holds whatever L2's write policy is.
+            fail_if(b.writeback_misses != 0, "inclusive: L1 write-backs always hit L2");
             break;
         case InclusionPolicy::Exclusive:
             fail_if(a.back_invalidations != 0, "exclusive: no back-invalidations");

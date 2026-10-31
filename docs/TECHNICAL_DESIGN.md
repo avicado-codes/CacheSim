@@ -4,7 +4,7 @@ Status labels: **Implemented**, **Partially implemented**, **Planned**, **Deferr
 
 > **Read [ARCHITECTURE.md](ARCHITECTURE.md) first.** It is the top-level source of truth: the product is now a deployed website with the engine compiled to WebAssembly, the cache model gains contract extension 1.1 (inclusion and write policies), and hardware monitoring is **Deferred**. This document keeps the exact v1 rules that ARCHITECTURE.md builds on.
 
-Implementation status (2026-10-29): trace reader (section 7), address mapping (4), cache levels and hierarchy (5), statistics and AMAT (6), event stream (12) and analytics are **Implemented** as library code with tests (`tests/`). Production replacement policies and `validate()` (configuration track), the `simulate` CLI options, and the web UI are **Planned**. Monitoring (section 8) is **Deferred**. The contracts in sections 7 and 9-11 are frozen at the end of Milestone 1; after that they change only through the protocol in [CONTRIBUTING.md](../CONTRIBUTING.md#2-shared-interfaces-and-ownership-boundaries).
+Implementation status (2026-10-29): trace reader (section 7), address mapping (4), cache levels and hierarchy (5), statistics and AMAT (6), event stream (12) and analytics are **Implemented** as library code with tests (`tests/`). The production LRU, FIFO and Random policies (configuration track, PR #4) are **Implemented** with tests. `validate()` (configuration track), the `simulate` CLI options, and the web UI are **Planned**. Monitoring (section 8) is **Deferred**. The contracts in sections 7 and 9-11 are frozen at the end of Milestone 1; after that they change only through the protocol in [CONTRIBUTING.md](../CONTRIBUTING.md#2-shared-interfaces-and-ownership-boundaries).
 
 ## 1. Scope
 
@@ -24,7 +24,7 @@ The component diagram is in the [README](../README.md#architecture). Module boun
 | CLI shell and exit codes | `include/ccsim/cli.hpp`, `src/cli.cpp`, `src/main.cpp` | Simulation | Partially implemented |
 | Core types (shared contract, extension 1.1) | `include/ccsim/sim/types.hpp` | Shared | Implemented (header) |
 | Config validation, spec parsing, presets | `include/ccsim/config/`, `src/config/` | Configuration | Planned |
-| Replacement policies | `include/ccsim/policy/`, `src/policy/` | Configuration | Interface implemented; policies Planned (test stand-ins in `tests/support/`) |
+| Replacement policies | `include/ccsim/policy/`, `src/policy/` | Configuration | Implemented: LRU, FIFO, Random (test stand-ins in `tests/support/` remain as an independent check) |
 | Trace reader (format v1) | `include/ccsim/io/`, `src/io/` | Simulation | Implemented |
 | Geometry, cache levels, hierarchy, statistics, AMAT, events | `include/ccsim/sim/`, `src/sim/` | Simulation | Implemented |
 | Analytics: metrics, 3C, reuse distance | `include/ccsim/analytics/`, `src/analytics/` | Simulation | Implemented |
@@ -58,7 +58,7 @@ Design rules:
 
 Contract extension 1.1 adds `write_policy` (`write_back` | `write_through`) and `write_miss_policy` (`write_allocate` | `no_write_allocate`) per level, and `inclusion` (`non_inclusive` | `inclusive` | `exclusive`) for the hierarchy. The defaults are the v1 behaviour. Full table: [ARCHITECTURE.md section 5.1](ARCHITECTURE.md#51-configuration-surface).
 
-Only the set count must be a power of two, so capacities such as 48 KiB with 12 ways and 64-byte lines (64 sets) are valid. Hierarchy-wide settings: optional L2, memory latency in cycles (at least 1), and a 64-bit seed for the Random policy (default 1). v1 requires the L1 and L2 line sizes to be equal.
+Only the set count must be a power of two, so capacities such as 48 KiB with 12 ways and 64-byte lines (64 sets) are valid. Hierarchy-wide settings: optional L2, memory latency in cycles (at least 1), and a 64-bit seed for the Random policy (default 1). v1 requires the L1 and L2 line sizes to be equal. The worst-case latency of one access, `t1 + t2 + tmem` (`t1 + tmem` without L2), must fit in 32 bits (at most 4,294,967,295 cycles), the width of the per-access latency in events; `Hierarchy::check()` refuses larger values with a `ConfigError` naming `latency`.
 
 CLI defaults when a key is omitted (teaching values, not a model of a specific CPU): L1 `32KiB`, 64-byte lines, 8 ways, LRU, 4 cycles; L2 `256KiB`, 64-byte lines, 8 ways, LRU, 12 cycles; memory 200 cycles.
 

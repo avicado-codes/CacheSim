@@ -2,7 +2,7 @@
 
 **The top-level source of truth for the project.** Read this first. Where it disagrees with an older document, this one wins, and the older one links back here. Detailed rules live in the documents in [section 18](#18-document-map); this one explains how everything fits together and why.
 
-Status labels follow the repository convention: **Implemented** (merged with tests), **Partially implemented**, **Planned**. Last full revision: 2026-10-29.
+Status labels follow the repository convention: **Implemented** (merged with tests), **Partially implemented**, **Planned**. Last full revision: 2026-10-29; status labels and QA fixes updated 2026-10-31 ([QA_REPORT.md](../QA_REPORT.md)); the one-off `NOTICE.md` handoff to the configuration track was retired the same day, and its lasting rules live here and in [AGENTS.md](../AGENTS.md).
 
 ---
 
@@ -131,7 +131,7 @@ The decisive points are latency and event volume for the live visualiser, and co
 |---|---|
 | WASM runs slower than native, typically 1.5 to 3× | The native engine runs at about 87 M accesses/s. Even 3× slower, the standard trace finishes in about 0.15 s. |
 | The `wasm32` heap is capped at 4 GiB | The trace costs 8.4 bytes per access, so 4 M accesses use 32.5 MiB. The upload limit defaults to 50 M accesses (about 420 MiB) through `max_accesses`. A streaming mode with no stored trace is a later option ([17](#17-roadmap-and-open-decisions)). |
-| JavaScript numbers lose precision above 2^53 | 64-bit addresses, lines and fingerprints cross as BigInt (`-sWASM_BIGINT`) or as `"0x…"` strings in JSON. Counters stay ordinary numbers. |
+| JavaScript numbers lose precision above 2^53 | 64-bit addresses, lines, fingerprints and the seed cross as BigInt (`-sWASM_BIGINT`) or as `"0x…"` strings in JSON (`seed_hex` next to `seed`). Counters stay ordinary numbers. |
 | Emscripten adds a CI toolchain | The engine build is pinned in CI. The same code is always also tested natively. |
 | Slow devices | Simulation runs in a worker, so the UI never freezes. Turbo mode skips per-event rendering ([7.4](#74-playback-model)). |
 
@@ -203,7 +203,7 @@ classDiagram
 | `size_bytes` | each | bytes (UI: KiB/MiB) | divisible by `line × ways` | L1 32 KiB, L2 256 KiB |
 | `line_bytes` | each | power of two | L1 = L2 in v1 | 64 |
 | `ways` | each | ≥ 1; 1 = direct-mapped; `size/line` = fully associative | derived `sets = size / (line × ways)` must be a power of two | 8 |
-| `hit_latency_cycles` | each | ≥ 1 | | L1 4, L2 12 |
+| `hit_latency_cycles` | each | ≥ 1 | worst case per access `t1 + t2 + tmem` ≤ 2^32 − 1 | L1 4, L2 12 |
 | `policy` | each | `lru`, `fifo`, `random` (more Planned) | | `lru` |
 | `write_policy` | each | `write_back`, `write_through` | | `write_back` |
 | `write_miss_policy` | each | `write_allocate`, `no_write_allocate` | applies to demand stores, so effectively L1 | `write_allocate` |
@@ -211,7 +211,7 @@ classDiagram
 | `inclusion` | hierarchy | `non_inclusive`, `inclusive`, `exclusive` | ignored without L2 | `non_inclusive` |
 | `seed` | hierarchy | uint64 | Random only; L1 uses `seed`, L2 uses `seed + 1` | 1 |
 
-Two layers enforce the rules. `Geometry::from()` in the engine rejects anything that would break address arithmetic: it throws `ConfigError` naming the field. `validate()` (configuration track, Planned) is the complete user-facing rule set, and adds friendly warnings such as "an inclusive L2 smaller than L1 back-invalidates constantly". The UI calls `validate()` live as the user types.
+Two layers enforce the rules. In the engine, `Geometry::from()` rejects anything that would break address arithmetic, and `Hierarchy::check()` adds the hierarchy-wide rules (memory latency ≥ 1, equal line sizes, a per-access latency that fits 32 bits); both throw `ConfigError` naming the field, and sweeps use `Hierarchy::check()` to list rejected combinations. `validate()` (configuration track, Planned) is the complete user-facing rule set, and adds friendly warnings such as "an inclusive L2 smaller than L1 back-invalidates constantly". The UI calls `validate()` live as the user types.
 
 ### 5.2 Contract extension 1.1
 
@@ -247,7 +247,7 @@ flowchart TD
     WT -- yes --> FW["forward partial store to L2 / memory"]
 ```
 
-Precise rules, all covered by `tests/unit/test_hierarchy.cpp`:
+Precise rules, all covered by `tests/unit/test_hierarchy.cpp` and by the differential oracle `tests/stress/test_differential.cpp` (an independent model fuzzed against the engine):
 
 1. **Victims are removed when chosen**, before anything else happens, so an inclusive back-invalidation can never find and double-count the line being replaced.
 2. **Non-inclusive / inclusive:** a dirty L1 victim is written into L2 **before** the demand fetch (normative; Demo B step 4 depends on it).
@@ -257,6 +257,7 @@ Precise rules, all covered by `tests/unit/test_hierarchy.cpp`:
 6. **Dirty data can travel under write-through.** In exclusive mode a dirty L2 line that moves up keeps its dirty bit even in a write-through L1, so its data is never lost.
 7. **Latency (additive, serial):** hit `t1`; L1 miss and L2 hit `t1 + t2`; L2 miss `t1 + t2 + tmem`; no L2 `t1 + tmem`; write-around miss `t1` (the store is buffered); write-backs and forwarded stores cost 0 (buffered).
 8. **No flush at end of trace.** Dirty lines still resident are not written back or counted.
+9. **Replacement state.** A demand hit, a write-back that hits L2 and a partial store that hits L2 each count as a use (`on_hit`); every install calls `on_fill`. An exclusive L2 hit is not a use (rule 4), and lines removed by back-invalidation or move-out get no separate call: the slot is refilled through `on_fill`.
 
 ### 5.4 Invariants (checked on every run in tests)
 
@@ -278,11 +279,11 @@ AMAT = `total_latency_cycles / L1.accesses`: one correctly rounded division of t
 
 ### 5.6 Replacement policies
 
-The engine depends only on the `ReplacementPolicy` interface (`on_hit`, `on_fill`, `select_victim`) and a `PolicyFactory` with `make_policy`'s signature. The production policies are owned by the configuration track. Until they land, tests use reference stand-ins in `tests/support/`, and those can never be linked into the product.
+The engine depends only on the `ReplacementPolicy` interface (`on_hit`, `on_fill`, `select_victim`) and a `PolicyFactory` with `make_policy`'s signature. `select_victim` is called only on full sets and must return a way in `[0, ways)`; the engine throws otherwise. When the policy is notified is fixed by [5.3 rule 9](#53-order-of-operations). The production policies are owned by the configuration track. Tests also run the engine against reference stand-ins in `tests/support/`, which can never be linked into the product.
 
 | Policy | Status | Notes |
 |---|---|---|
-| LRU, FIFO, Random | contract + test stand-ins; production Planned (config track) | Random: `std::mt19937_64`, `rng() % ways`; never `uniform_int_distribution` |
+| LRU, FIFO, Random | **Implemented** (config track, `src/policy/`, PR #4); the test stand-ins stay as an independent check | Random: `std::mt19937_64`, `rng() % ways`; never `uniform_int_distribution` |
 | Tree-PLRU, NRU (bit-PLRU), MRU, LFU, Clock, SRRIP/BRRIP, LIP/BIP | Planned | Fit the existing interface. Each adds one `PolicyKind` value (appended) and one file under `src/policy/`. |
 | Belady OPT | Planned | Needs future knowledge, so it does **not** fit the interface. Proposal: the session precomputes each access's next-use index (one backward pass, O(N) time and 8 bytes per access) and hands it to an `OptPolicy` through a factory parameter. Requires a contract change agreed by both tracks. |
 
@@ -441,6 +442,8 @@ There are two layers. The **C ABI** (`include/ccsim/wasm/ccsim_api.h`, Implement
 | `ccsim_compare_json(sessions, n, labels)`, `ccsim_compare_csv(...)` | `ccsim.comparison/1` document / CSV |
 | `ccsim_last_error()` | message for the last failing call. Exceptions never cross the ABI. |
 
+Handles are never reused: after `_release`, the handle stays invalid for the life of the module, so a stale handle held by JavaScript fails with "invalid handle" instead of reaching a newer trace or session.
+
 Why a flat integer config and binary events instead of JSON everywhere: the config is 19 numbers, so there's no parser to get wrong and no allocation. Events are the hot path, so JSON would cost about 10× in size and parse time. Reports and comparisons are produced once per run, so they are JSON for convenience.
 
 ### 8.2 Worker protocol (UI ⇄ worker)
@@ -522,8 +525,8 @@ Every value comes from exact integer counters. A rate with a zero denominator is
 ```text
 CacheSim/
 ├── AGENTS.md                  operating manual for AI agents and new contributors
-├── NOTICE.md                  what the configuration track must follow to stay in sync
 ├── README.md  CONTRIBUTING.md
+├── QA_REPORT.md               repository QA report (test completion report, kept current)
 ├── CMakeLists.txt             root: options + auto-discovers src/*/CMakeLists.txt (rarely edited)
 ├── docs/                      ARCHITECTURE (this) · TECHNICAL_DESIGN · FRONTEND_DESIGN · WORKING_DEMO · DEVELOPMENT · OVERVIEW
 ├── assets/images/             UI mood-board screenshots
@@ -598,7 +601,7 @@ Design rules (carried over from [TECHNICAL_DESIGN 2](TECHNICAL_DESIGN.md#2-archi
 | **Configuration and policies** | teammate (GitHub `Code-r4Life`) | `include/ccsim/policy/`, `src/policy/`, `include/ccsim/config/`, `src/config/`, `tests/unit/test_policy_*.cpp`, `tests/unit/test_config_*.cpp` |
 | **Simulation** (trace → engine → live → analytics → compare) | repository owner | `include/ccsim/{io,sim,analytics,session,report,compare,wasm}/` (except `sim/types.hpp`), matching `src/` folders, `tests/` (except files above), `tests/data/standard/` |
 | **Frontend** | later | `web/` |
-| **Shared: change only by the protocol in 12.3** | both | `include/ccsim/sim/types.hpp`, root `CMakeLists.txt`, `docs/ARCHITECTURE.md`, `AGENTS.md`, `NOTICE.md` |
+| **Shared: change only by the protocol in 12.3** | both | `include/ccsim/sim/types.hpp`, root `CMakeLists.txt`, `docs/ARCHITECTURE.md`, `AGENTS.md` |
 
 ### 12.2 Structural rules that make conflicts unlikely
 
@@ -662,13 +665,13 @@ The full table, regenerated by `ctest -L bench`, is in [tests/results/benchmark_
 
 ```mermaid
 flowchart LR
-    U["unit (33)<br/>parser · engine semantics ·<br/>analytics · session · ABI"] --> G["golden (4)<br/>Demos A–C, every integer,<br/>hand-derived"]
-    G --> S["stress (4)<br/>72-config matrix × 1M accesses,<br/>all invariants"]
+    U["unit (70)<br/>parser · engine semantics · policies ·<br/>analytics · session · ABI · boundaries"] --> G["golden (4)<br/>Demos A–C, every integer,<br/>hand-derived"]
+    G --> S["stress (12)<br/>72-config matrix × 1M accesses ·<br/>production vs reference ·<br/>differential oracle"]
     S --> D["dataset (3)<br/>integrity · regression baseline ·<br/>14 fitness criteria"]
     D --> B["bench (opt-in)<br/>throughput floors,<br/>Release only"]
 ```
 
-- **Independent oracles:** golden numbers come from hand derivations in [WORKING_DEMO.md](WORKING_DEMO.md), never from this implementation's output. Analytics are cross-checked by independent implementations (brute force, FA-LRU shadow, engine).
+- **Independent oracles:** golden numbers come from hand derivations in [WORKING_DEMO.md](WORKING_DEMO.md), never from this implementation's output. Analytics are cross-checked by independent implementations (brute force, FA-LRU shadow, engine). The engine itself is cross-checked by a second, naive model of section 5.3 fuzzed over 3,000 random configurations (`differential.*`), comparing every counter and every final slot.
 - **Regression baselines** for the standard dataset are pinned and labelled as such ([tests/data/standard/README.md](../tests/data/standard/README.md)).
 - **Toolchains verified on Linux:** GCC 16 Release, GCC Debug + AddressSanitizer + UBSan, Clang Release, all with `-Werror -Wall -Wextra -Wpedantic -Wshadow -Wconversion`. Windows, macOS and Emscripten are Not tested.
 - **Frontend (Planned):** Vitest for protocol decoding and stores; Playwright end-to-end that loads the WASM, runs Demo B, and asserts the grid equals the engine events (AC-11).
@@ -706,7 +709,7 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    P1["Phase 1 (now)<br/>engine · analytics · compare ·<br/>C ABI · tests · dataset"] --> P2["Phase 2<br/>production policies (config track) ·<br/>validate() · WASM build in CI ·<br/>web UI: configure, upload, visualiser"]
+    P1["Phase 1 (done)<br/>engine · production policies ·<br/>analytics · compare · C ABI ·<br/>tests · dataset"] --> P2["Phase 2 (now)<br/>validate(), presets, spec parsing<br/>(config track) ·<br/>WASM build in CI ·<br/>web UI: configure, upload, visualiser"]
     P2 --> P3["Phase 3<br/>analytics + compare views ·<br/>deploy · advanced policies ·<br/>education content"]
     P3 --> P4["Phase 4 (optional)<br/>share links service ·<br/>OPT · prefetchers · checkpoints"]
 ```
@@ -731,7 +734,8 @@ flowchart LR
 | [DEVELOPMENT.md](DEVELOPMENT.md) | building and testing on each OS | current |
 | [OVERVIEW.md](OVERVIEW.md) | a one-page tour | current |
 | [../tests/data/standard/README.md](../tests/data/standard/README.md) | the standard dataset | current |
-| [../AGENTS.md](../AGENTS.md), [../NOTICE.md](../NOTICE.md) | agent rules, the teammate's checklist | current |
+| [../AGENTS.md](../AGENTS.md) | agent and contributor rules | current |
+| [../QA_REPORT.md](../QA_REPORT.md) | latest QA pass: methods, results, defects, open risks | current |
 
 ## 19. Glossary
 

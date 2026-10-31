@@ -38,6 +38,12 @@ public:
     explicit Hierarchy(const HierarchyConfig& config) : Hierarchy(config, &make_policy) {}
     Hierarchy(const HierarchyConfig& config, PolicyFactory factory);
 
+    // Throws ConfigError for every configuration the constructor would refuse, without
+    // building anything: geometry of each level, memory latency >= 1, equal line sizes, and a
+    // worst-case per-access latency (t1 + t2 + tmem) that fits the 32-bit event field.
+    // Sweeps use it to reject combinations up front (ARCHITECTURE 10).
+    static void check(const HierarchyConfig& config);
+
     // Contract entry point: one demand access.
     void access(const MemoryAccess& access) { (void)step(access, nullptr); }
 

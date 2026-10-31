@@ -114,6 +114,8 @@ Rules:
 
 ## 3. Milestone plan
 
+> **Historical.** This plan predates the move to a website with a WebAssembly engine (CLI-first, hardware monitoring, three-OS release). The current roadmap is [ARCHITECTURE.md section 17](docs/ARCHITECTURE.md#17-roadmap-and-open-decisions); the roles, review and Git rules in the other sections still apply where ARCHITECTURE section 12 does not override them.
+
 ```mermaid
 flowchart LR
     subgraph M1["M1: Foundation and Contracts"]

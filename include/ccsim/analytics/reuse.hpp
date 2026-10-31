@@ -34,7 +34,8 @@ struct ReuseProfile {
 
     // Exact misses of a fully associative LRU cache holding 2^k lines.
     std::uint64_t fa_lru_misses_pow2(std::uint32_t k) const noexcept;
-    // Miss ratio for 2^k lines; 0 accesses -> 0.
+    // Miss ratio for 2^k lines. Returns 0 for an empty trace; callers that publish the value
+    // (the JSON report) must check `accesses` and emit null instead.
     double fa_lru_miss_ratio_pow2(std::uint32_t k) const noexcept;
     // Median reuse distance bucket upper bound over re-references (0 if none).
     std::uint64_t median_distance_upper_bound() const noexcept;

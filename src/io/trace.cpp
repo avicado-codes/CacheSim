@@ -131,7 +131,17 @@ void TraceParser::consume_line(std::string_view line, Trace& out) {
 }
 
 void TraceParser::feed(std::string_view chunk, Trace& out) {
+    if (!error_.empty()) throw TraceError(error_);
     if (finished_) throw std::logic_error("TraceParser::feed called after finish");
+    try {
+        feed_lines(chunk, out);
+    } catch (const TraceError& e) {
+        error_ = e.what();  // poisoned: a trace with a bad line must never be completed
+        throw;
+    }
+}
+
+void TraceParser::feed_lines(std::string_view chunk, Trace& out) {
     std::size_t start = 0;
     if (!tail_.empty()) {
         // Complete the line carried over from the previous chunk.
@@ -158,12 +168,18 @@ void TraceParser::feed(std::string_view chunk, Trace& out) {
 }
 
 void TraceParser::finish(Trace& out) {
+    if (!error_.empty()) throw TraceError(error_);
     if (finished_) return;
-    finished_ = true;
     if (!tail_.empty()) {
-        consume_line(tail_, out);
+        try {
+            consume_line(tail_, out);
+        } catch (const TraceError& e) {
+            error_ = e.what();
+            throw;
+        }
         tail_.clear();
     }
+    finished_ = true;
 }
 
 Trace read_trace(std::istream& in, const std::string& source_name, std::uint64_t max_accesses) {

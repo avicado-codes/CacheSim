@@ -57,10 +57,10 @@ More policies (PLRU, SRRIP, LFU, Belady's optimal, …) are planned.
 
 ```mermaid
 flowchart LR
-    E["Engine, analytics,<br/>comparison, tests<br/>(done)"] --> P["Production policies<br/>+ validation<br/>(config track)"] --> W["Website UI<br/>+ WASM build"] --> D["Deploy"]
+    E["Engine, policies,<br/>analytics, comparison,<br/>tests (done)"] --> P["Validation<br/>(config track)"] --> W["Website UI<br/>+ WASM build"] --> D["Deploy"]
 ```
 
-Working now (Linux-verified library code with tests): trace parsing, the L1/L2 engine with every inclusion and write policy, the live-session API, analytics, comparison and sweeps, the browser C ABI, and the validated standard dataset. Planned: production replacement policies and `validate()`, the `simulate` CLI command, the web UI, and deployment. Hardware monitoring is deferred.
+Working now (Linux-verified library code with tests): trace parsing, the L1/L2 engine with every inclusion and write policy, the LRU, FIFO and Random replacement policies, the live-session API, analytics, comparison and sweeps, the browser C ABI, and the validated standard dataset. Planned: `validate()`, the `simulate` CLI command, the web UI, and deployment. Hardware monitoring is deferred.
 
 ## Go deeper
 

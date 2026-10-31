@@ -17,7 +17,7 @@ Operating manual for any AI agent (Claude Code, Codex, Copilot, Cursor, …) or 
 |---|---|---|
 | `include/ccsim/policy/`, `src/policy/`, `include/ccsim/config/`, `src/config/`, `tests/unit/test_policy_*`, `tests/unit/test_config_*` | Configuration track (`Code-r4Life`) | that track only |
 | `include/ccsim/{io,sim,analytics,session,report,compare,wasm}/` and matching `src/`, `tests/**` (rest), `tests/data/standard/` | Simulation track (repo owner) | that track only |
-| `include/ccsim/sim/types.hpp`, root `CMakeLists.txt`, `docs/ARCHITECTURE.md`, `AGENTS.md`, `NOTICE.md` | **Shared**: append-only, one contract change per PR | either, following the [contract protocol](docs/ARCHITECTURE.md#123-shared-contract-protocol) |
+| `include/ccsim/sim/types.hpp`, root `CMakeLists.txt`, `docs/ARCHITECTURE.md`, `AGENTS.md` | **Shared**: append-only, one contract change per PR | either, following the [contract protocol](docs/ARCHITECTURE.md#123-shared-contract-protocol) |
 | `web/` | Frontend track (later) | that track only |
 | `src/monitor/`, `include/ccsim/monitor/` | Deferred | nobody, unless asked |
 
@@ -26,7 +26,7 @@ Operating manual for any AI agent (Claude Code, Codex, Copilot, Cursor, …) or 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCCSIM_WARNINGS_AS_ERRORS=ON
 cmake --build build
-ctest --test-dir build --output-on-failure          # smoke, unit, golden, stress, dataset (~6 s)
+ctest --test-dir build --output-on-failure          # smoke, unit, golden, stress, dataset (~25 s; stress ~20 s)
 ctest --test-dir build -L golden                    # one label
 ./build/tests/ccsim_unit_tests sim.                 # one suite, filtered by test-name substring
 # Sanitizers (run before any engine PR):

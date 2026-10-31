@@ -10,4 +10,4 @@ Evidence written by the test suites. Files here are **generated**: never edit th
 | `benchmark_report.md` | `ctest -L bench` (needs `-DCCSIM_BUILD_BENCHMARKS=ON`, Release) | yes, but only from the machine named in the PR |
 | anything else (`*.ndjson`, scratch output) | ad-hoc runs | no (git-ignored) |
 
-Throughput numbers depend on the machine and compiler. Compare them only against runs on the same machine.
+The dataset files are deterministic: regenerating them on any machine must leave `git diff` empty (timings are printed to the console, not written). Throughput numbers depend on the machine and compiler. Compare them only against runs on the same machine.
