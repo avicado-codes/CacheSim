@@ -33,6 +33,9 @@ std::string excerpt(std::string_view token) {
 
 std::optional<MemoryAccess> parse_trace_line(std::string_view line, std::string_view source,
                                              std::uint64_t line_number) {
+    if (line.size() > kMaxTraceLineBytes) {
+        fail(source, line_number, "line is longer than " + std::to_string(kMaxTraceLineBytes) + " bytes");
+    }
     if (!line.empty() && line.back() == '\r') line.remove_suffix(1);  // CRLF
     if (const std::size_t hash = line.find('#'); hash != std::string_view::npos) {
         line = line.substr(0, hash);
@@ -147,10 +150,10 @@ void TraceParser::feed_lines(std::string_view chunk, Trace& out) {
         // Complete the line carried over from the previous chunk.
         const std::size_t nl = chunk.find('\n');
         if (nl == std::string_view::npos) {
-            tail_.append(chunk.data(), chunk.size());
+            keep_tail(chunk);
             return;
         }
-        tail_.append(chunk.data(), nl);
+        keep_tail(chunk.substr(0, nl));
         consume_line(tail_, out);
         tail_.clear();
         start = nl + 1;
@@ -159,12 +162,21 @@ void TraceParser::feed_lines(std::string_view chunk, Trace& out) {
     while (start < chunk.size()) {
         const std::size_t nl = chunk.find('\n', start);
         if (nl == std::string_view::npos) {
-            tail_.assign(chunk.data() + start, chunk.size() - start);
+            keep_tail(chunk.substr(start));
             return;
         }
         consume_line(chunk.substr(start, nl - start), out);
         start = nl + 1;
     }
+}
+
+void TraceParser::keep_tail(std::string_view part) {
+    // The carried-over line is the only parser state that grows with the input, so it is
+    // bounded here, before it grows, rather than when the line finally ends.
+    if (tail_.size() + part.size() > kMaxTraceLineBytes) {
+        fail(source_, line_number_ + 1, "line is longer than " + std::to_string(kMaxTraceLineBytes) + " bytes");
+    }
+    tail_.append(part.data(), part.size());
 }
 
 void TraceParser::finish(Trace& out) {

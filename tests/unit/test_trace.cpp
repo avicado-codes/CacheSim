@@ -112,3 +112,37 @@ TEST_CASE("io.write_bits_pack_across_word_boundaries") {
     for (std::size_t i = 0; i < 200; ++i) CHECK_EQ(t.is_write(i), i % 3 == 0);
     CHECK_EQ(t.writes(), 67u);
 }
+
+TEST_CASE("io.line_length_limit") {
+    // A comment line of exactly the limit is still accepted (the limit counts the bytes before
+    // the line end, comment included).
+    const std::string ok_line = "R 0x10 #" + std::string(kMaxTraceLineBytes - 8, 'c');
+    CHECK_EQ(ok_line.size(), kMaxTraceLineBytes);
+    CHECK_EQ(trace_from_text(ok_line + "\nW 0x20\n")->size(), std::size_t{2});
+
+    // One byte longer, inside a single chunk (parsed in place).
+    CHECK(error_of(ok_line + "c\n").find("t.trace:1: line is longer than 4096 bytes") == 0);
+
+    // No line break at all, arriving in small chunks: rejected as soon as the carried-over
+    // tail passes the limit, not after the whole input has been buffered.
+    Trace t;
+    TraceParser p("bin.trace");
+    p.feed("R 0x1\n", t);
+    const std::string junk(1000, '\x7f');
+    std::string msg;
+    std::size_t fed = 0;
+    try {
+        for (; fed < 100; ++fed) p.feed(junk, t);
+    } catch (const TraceError& e) {
+        msg = e.what();
+    }
+    CHECK_EQ(msg, std::string("bin.trace:2: line is longer than 4096 bytes"));
+    CHECK_EQ(fed, std::size_t{4});              // the fifth 1000-byte chunk crosses 4096
+    CHECK_THROWS_AS(p.finish(t), TraceError);   // the parser stays failed
+
+    // The pull reader applies the same limit.
+    std::istringstream in("R 0x1\n" + std::string(5000, 'x') + "\n");
+    TraceReader r(in, "pull.trace");
+    CHECK(r.next().has_value());
+    CHECK_THROWS_AS((void)r.next(), TraceError);
+}
