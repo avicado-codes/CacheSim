@@ -450,7 +450,7 @@ Why a flat integer config and binary events instead of JSON everywhere: the conf
 ### 8.2 Worker protocol (UI ⇄ worker)
 
 ```ts
-// web/src/engine/protocol.ts (Planned): the only API UI code uses.
+// web/src/engine/protocol.ts: the only API UI code uses.
 type ToEngine =
   | { t: "trace.begin"; name: string; maxAccesses: number }
   | { t: "trace.chunk"; bytes: ArrayBuffer }                 // transferred
@@ -551,7 +551,7 @@ CacheSim/
 │   ├── data/golden/           Demo A–C traces (hand-derived expectations)
 │   ├── data/standard/         THE standard dataset + manifest
 │   └── results/               generated evidence (curated files committed)
-└── web/                       frontend (Planned, frontend track)
+└── web/                       React + TypeScript website (frontend track)
 ```
 
 Dependency direction (an arrow means "may include"). There are no cycles, and nothing below `wasm` knows the browser exists:
@@ -674,8 +674,8 @@ flowchart LR
 
 - **Independent oracles:** golden numbers come from hand derivations in [WORKING_DEMO.md](WORKING_DEMO.md), never from this implementation's output. Analytics are cross-checked by independent implementations (brute force, FA-LRU shadow, engine). The engine itself is cross-checked by a second, naive model of section 5.3 fuzzed over 3,000 random configurations (`differential.*`), comparing every counter and every final slot.
 - **Regression baselines** for the standard dataset are pinned and labelled as such ([tests/data/standard/README.md](../tests/data/standard/README.md)).
-- **Toolchains verified on Linux:** GCC 16 Release, GCC Debug + AddressSanitizer + UBSan, Clang Release, all with `-Werror -Wall -Wextra -Wpedantic -Wshadow -Wconversion`. Windows, macOS and Emscripten are Not tested.
-- **Frontend (Planned):** Vitest for protocol decoding and stores; Playwright end-to-end that loads the WASM, runs Demo B, and asserts the grid equals the engine events (AC-11).
+- **Toolchains verified on Linux:** GCC 16 Release, GCC Debug + AddressSanitizer + UBSan, Clang Release, all with `-Werror -Wall -Wextra -Wpedantic -Wshadow -Wconversion`. Emscripten 4.0.10 verified on Linux (module built with `-Werror`, `tests/wasm/smoke.mjs` passes). Windows and macOS are Not tested.
+- **Frontend:** Vitest suites (`web/test/`) for config, trace and event decoding, stores, views and the visualiser, all against engine-generated fixtures that `unit.web_fixtures_current` keeps current. AC-11 is checked there: after each Demo B access the highlights must match the engine snapshot, and the final grid must match WORKING_DEMO step 10. **Planned:** a Playwright end-to-end that loads the WASM in a real browser; browser checks so far were run by hand in headless Chromium.
 
 ## 15. Build, CI and deployment
 
@@ -683,11 +683,11 @@ flowchart LR
 flowchart LR
     PR["Pull request"] --> N["native job<br/>cmake + ctest<br/>GCC, Clang, ASan"]
     PR --> E["wasm job<br/>emcmake cmake<br/>build ccsim.mjs + .wasm"]
-    E --> F["web job<br/>npm ci · vitest · vite build ·<br/>playwright (Demo B)"]
+    E --> F["web job<br/>npm ci · typecheck · vitest ·<br/>vite build (Playwright Planned)"]
     N --> GATE{"all green?"}
     F --> GATE
-    GATE -- yes --> PREV["preview deploy<br/>(per-PR URL)"]
-    GATE -- "merge to main" --> PROD["production deploy<br/>Cloudflare Pages"]
+    GATE -- yes --> PREV["preview deploy<br/>(per-PR URL, Planned)"]
+    GATE -- "merge to main" --> PROD["production deploy<br/>Cloudflare Pages (Planned)"]
 ```
 
 | Item | Choice |
@@ -710,8 +710,8 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-    P1["Phase 1 (done)<br/>engine · production policies ·<br/>analytics · compare · C ABI ·<br/>tests · dataset"] --> P2["Phase 2 (now)<br/>validate(), presets, spec parsing<br/>(config track) ·<br/>WASM build in CI ·<br/>web UI: configure, upload, visualiser"]
-    P2 --> P3["Phase 3<br/>analytics + compare views ·<br/>deploy · advanced policies ·<br/>education content"]
+    P1["Phase 1 (done)<br/>engine · production policies ·<br/>analytics · compare · C ABI ·<br/>tests · dataset"] --> P2["Phase 2 (now)<br/>done: WASM build in CI · website<br/>(configure, upload, visualiser,<br/>analytics, compare) ·<br/>open: validate(), presets,<br/>spec parsing (config track)"]
+    P2 --> P3["Phase 3<br/>deploy · advanced policies ·<br/>education content"]
     P3 --> P4["Phase 4 (optional)<br/>share links service ·<br/>OPT · prefetchers · checkpoints"]
 ```
 

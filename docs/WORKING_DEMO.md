@@ -190,7 +190,7 @@ Expected v1 coverage per OS (all Not tested):
 
 ## 4. Interactive cache debugger demo
 
-**Status:** engine Implemented; UI Planned.
+**Status:** engine and UI Implemented (the website's Visualize page). AC-11 is checked by `web/test/visualizer.test.ts` against engine-generated fixtures; an end-to-end browser test is Planned.
 
 The debugger is the live-simulation view of the website ([ARCHITECTURE.md section 7](ARCHITECTURE.md#7-stage-3-the-live-simulation)). It runs in the browser against the WebAssembly engine and renders the engine's event stream; it never simulates the cache itself. Step 4 below is already asserted action by action in `golden.demo_b_two_level_every_step`. The walkthrough below uses [Demo B](#demo-b-two-level-walkthrough) because every step there is already derived by hand.
 

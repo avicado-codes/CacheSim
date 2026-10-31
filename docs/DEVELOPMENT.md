@@ -129,7 +129,7 @@ Visual Studio generators are multi-configuration: pick the configuration when bu
 | `CCSIM_WARNINGS_AS_ERRORS` | `OFF` | Adds `-Werror` or `/WX`; CI turns it on |
 | `CCSIM_BUILD_BENCHMARKS` | `OFF` | Registers the `bench` suite (Release only); writes `tests/results/benchmark_report.md` |
 
-### WebAssembly (browser engine): Not tested
+### WebAssembly (browser engine): Verified on Linux
 
 Needs the [Emscripten SDK](https://emscripten.org/docs/getting_started/downloads.html) (`./emsdk install 4.0.10 && ./emsdk activate 4.0.10 && source ./emsdk_env.sh`). 4.0.10 is the version CI pins.
 
@@ -138,6 +138,8 @@ emcmake cmake -S . -B build-wasm -DCMAKE_BUILD_TYPE=Release
 cmake --build build-wasm --target ccsim_wasm   # -> build-wasm/src/wasm/ccsim.mjs + ccsim.wasm
 node tests/wasm/smoke.mjs build-wasm/src/wasm/ccsim.mjs   # 0 pass, 1 fail (77 = session checks skipped)
 ```
+
+Verified 2026-11-01 on Kali rolling x86-64 (Emscripten 4.0.10, Node 24): build with `-Werror` and smoke test PASSED. Windows and macOS: Not tested. To run the website on that module (`npm run wasm:copy`, Vitest, Vite build), see [web/README.md](../web/README.md); the full Linux sequence from a fresh clone is in the [root README](../README.md#reproduce-on-linux).
 
 Tests are not built under Emscripten. The same C ABI (`src/wasm/ccsim_api.cpp`) is exercised natively by `unit.ccsim_unit_tests` (`wasm_api.*`). The browser module installs the production policies from `src/policy/` at start-up. A build without them (only possible before PR #4) loads but refuses to create sessions with the message "no replacement policies are linked", and `tests/wasm/smoke.mjs` then exits 77 (session checks skipped). CI (`.github/workflows/ci.yml`) runs this on every push and pull request and nightly at 02:30 UTC, next to the dataset checksum and the GCC, Clang and ASan + UBSan native jobs. Push/PR runs skip only the `stress` label under ASan (15+ minutes there); nightly and manual (`workflow_dispatch`) runs execute everything plus the `bench` report. With production policies merged, a skipped (77) smoke test is a failure.
 
