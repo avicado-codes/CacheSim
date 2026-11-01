@@ -4,8 +4,13 @@
 #   wasm:    the Emscripten browser module, loaded and checked end to end in Node.
 #   web:     the website (typecheck, Vitest, Vite build) around the module from the wasm job.
 #   bench:   throughput report (nightly and on demand only; timings are noisy on shared runners).
+#   deploy:  pushes to main only, after every native suite and the site build pass: uploads the
+#            exact ccsim-site artifact the web job tested to Cloudflare Pages (production).
+#   live:    the deployed site as visitors get it (tests/site/check_live.sh): after every deploy,
+#            nightly and on demand.
 # Runs on every push and pull request, and nightly on main so project health is reported even
 # when nobody pushes (toolchain or runner-image drift shows up the morning after, not weeks later).
+# A failed nightly run emails whoever last edited the cron line below.
 name: ci
 
 on:
@@ -27,6 +32,9 @@ env:
   # Full suites (including the long ASan stress run) on nightly and manual runs; push/PR runs
   # skip only the stress label under ASan, which takes 15+ minutes there.
   FULL: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+  # The Cloudflare Pages project and its production URL (change both together).
+  PAGES_PROJECT: cachesim
+  SITE_URL: https://cachesim.pages.dev
 
 jobs:
   dataset:
@@ -167,6 +175,57 @@ jobs:
           name: ccsim-site
           path: web/dist
           retention-days: 14
+
+  deploy:
+    # ARCHITECTURE section 15, production deploy. Needs the repository secrets
+    # CLOUDFLARE_API_TOKEN (permission "Cloudflare Pages: Edit") and CLOUDFLARE_ACCOUNT_ID.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [native, web]
+    runs-on: ubuntu-24.04
+    environment:
+      name: production
+      url: ${{ env.SITE_URL }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: ccsim-site
+          path: site
+      - name: Check the artifact
+        run: test -s site/index.html && test -s site/_headers && test -s site/engine/ccsim.wasm
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy site --project-name=${{ env.PAGES_PROJECT }} --branch=main --commit-hash=${{ github.sha }}
+
+  live:
+    # Independent of the code jobs: it runs nightly even when a build is red, so a broken site
+    # and a broken build are reported separately. On pushes it runs only after a successful deploy.
+    needs: deploy
+    if: ${{ !cancelled() && (needs.deploy.result == 'success' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - name: Wait for the new deployment to propagate
+        if: needs.deploy.result == 'success'
+        run: sleep 30
+      - name: Check the live site
+        run: |
+          set -o pipefail
+          bash tests/site/check_live.sh "$SITE_URL" | tee live.log
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Live site: $SITE_URL"
+            echo '```'
+            cat live.log 2>/dev/null || echo "check did not run"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   bench:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
