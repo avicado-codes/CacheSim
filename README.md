@@ -2,6 +2,8 @@
 
 A deterministic **L1/L2 cache simulator** written in portable C++17 and delivered as a **website**: configure a hierarchy, upload a memory trace, watch every access live, analyse the run, and benchmark configurations against each other. The engine compiles to WebAssembly and runs in the visitor's browser.
 
+**Live site: [cachesim.pages.dev](https://cachesim.pages.dev)**. It is deployed from `main` to Cloudflare Pages, and CI checks it every night with [tests/site/check_live.sh](tests/site/check_live.sh).
+
 > **Status: v0.1.0, engine phase.** The simulation engine, the production LRU / FIFO / Random replacement policies, live-session API, analytics, comparison, browser C ABI, test suites, the validated standard dataset and the website (React + WebAssembly) are **Implemented** and Linux-verified. `validate()` (configuration track) and the `simulate` CLI command are **Planned**. Hardware monitoring is **Deferred**.
 >
 > **New here? Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).** Contributors and AI agents: read [AGENTS.md](AGENTS.md). Latest QA pass: [docs/QA_REPORT.md](docs/QA_REPORT.md).
