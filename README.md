@@ -140,8 +140,17 @@ Debian, Ubuntu and Kali:
 
 ```bash
 sudo apt update
-sudo apt install -y build-essential cmake ninja-build git zlib1g-dev python3 python3-pip
-cmake --version    # if older than 3.20: python3 -m pip install --user cmake ninja  (or use a venv)
+sudo apt install -y build-essential cmake ninja-build git zlib1g-dev python3 python3-venv
+cmake --version    # must be 3.20 or newer
+```
+
+If the packaged CMake is older than 3.20, or you cannot use `sudo`, install CMake and Ninja into a virtual environment. Recent Debian, Ubuntu and Kali releases refuse `pip install --user` (PEP 668, "externally-managed-environment"):
+
+```bash
+python3 -m venv ~/.venvs/ccsim
+~/.venvs/ccsim/bin/pip install cmake ninja
+export PATH="$HOME/.venvs/ccsim/bin:$PATH"    # once in every new shell
+cmake --version
 ```
 
 Fedora: `sudo dnf install -y gcc-c++ cmake ninja-build git zlib-devel python3`. Arch: `sudo pacman -S --needed base-devel cmake ninja git zlib python`.
@@ -244,7 +253,7 @@ For development with hot reload, use `npm run dev` (http://localhost:5173) inste
 | Symptom | Cause and fix |
 |---|---|
 | `dataset.ccsim_dataset_tests` reports *Skipped* | zlib headers were missing at configure time: install `zlib1g-dev`, then delete `build/` and configure again |
-| `CMake 3.20 or higher is required` | `python3 -m pip install --user cmake ninja` and put `~/.local/bin` first on `PATH` |
+| `CMake 3.20 or higher is required`, or `pip` reports `externally-managed-environment` | install CMake and Ninja in a venv (step 1), put `~/.venvs/ccsim/bin` first on `PATH`, then delete `build/` and configure again |
 | `emcmake: command not found` | run `source ~/emsdk/emsdk_env.sh` in this shell |
 | The website says the engine could not load | `npm run wasm:copy` was skipped, or `build-wasm` was not built first (step 6) |
 | `npm ci` fails with an engine error | Node is older than 22.12: `nvm install 22 && nvm use 22` |
